@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #08080c;
+  --bg-soft: #0e0e14;
+  --surface: #14141c;
+  --surface-2: #1c1c26;
+  --border: rgba(255,255,255,0.06);
+  --border-strong: rgba(255,255,255,0.12);
+  --text: #fafafa;
+  --text-2: #a1a1aa;
+  --text-3: #71717a;
+  --accent: #a78bfa;
+  --accent-2: #c084fc;
+  --income: #4ade80;
+  --income-bg: rgba(74,222,128,0.12);
+  --expense: #fb7185;
+  --expense-bg: rgba(251,113,133,0.12);
+  --warn: #fbbf24;
+  --warn-bg: rgba(251,191,36,0.12);
+  --critical: #ef4444;
+  --critical-bg: rgba(239,68,68,0.12);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  overscroll-behavior-y: contain;
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(167,139,250,0.18), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 90% 110%, rgba(192,132,252,0.10), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* Hide scrollbar for chips */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Color scheme for date inputs */
+input[type="date"] {
+  color-scheme: dark;
+}
+
+/* Staggered animation delays */
+.animate-delay-1 { animation-delay: 0.04s; }
+.animate-delay-2 { animation-delay: 0.08s; }
+.animate-delay-3 { animation-delay: 0.12s; }
+.animate-delay-4 { animation-delay: 0.16s; }
+.animate-delay-5 { animation-delay: 0.20s; }
+.animate-delay-6 { animation-delay: 0.24s; }
+.animate-delay-7 { animation-delay: 0.28s; }
+.animate-delay-8 { animation-delay: 0.32s; }
+
+/* Progress bar gradient */
+.progress-gradient {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+
+/* Hero gradient overlay */
+.hero-gradient {
+  background:
+    linear-gradient(135deg, rgba(167,139,250,0.18), rgba(192,132,252,0.04) 60%, transparent),
+    var(--surface);
+}
+
+.hero-glow {
+  background: radial-gradient(circle at 100% 0%, rgba(167,139,250,0.22), transparent 55%);
+}
+
+/* Transaction card states */
+.txn-atrasado {
+  border-color: rgba(239,68,68,0.22);
+  background: linear-gradient(180deg, rgba(239,68,68,0.05), transparent 60%), var(--surface);
+}
+
+.txn-breve {
+  border-color: rgba(251,191,36,0.18);
+}
+
+/* Tag colors */
+.tag-pai { background: rgba(167,139,250,0.15); color: #c4b5fd; }
+.tag-amor { background: rgba(244,114,182,0.18); color: #f9a8d4; }
+.tag-fixo { background: rgba(96,165,250,0.15); color: #93c5fd; }
+.tag-parcelado { background: rgba(251,191,36,0.15); color: #fcd34d; }
+.tag-servicos { background: rgba(110,231,183,0.15); color: #6ee7b7; }
+.tag-outros { background: rgba(251,113,133,0.15); color: #fda4af; }
