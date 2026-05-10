@@ -4,6 +4,7 @@ import { GeistSans } from 'geist/font/sans';
 import { FinanceProvider } from '@/lib/contexts/FinanceContext';
 import { ToastProvider } from '@/lib/contexts/ToastContext';
 import { BottomNav } from '@/components/layout/BottomNav';
+import { PWARegister } from '@/components/layout/PWARegister';
 import '@/styles/globals.css';
 
 const bricolage = Bricolage_Grotesque({
@@ -56,6 +57,7 @@ export default function RootLayout({
           <ToastProvider>
             {children}
             <BottomNav />
+            <PWARegister />
           </ToastProvider>
         </FinanceProvider>
       </body>

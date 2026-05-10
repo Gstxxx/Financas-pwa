@@ -16,7 +16,8 @@ const FAB_CONFIG: Record<string, { label: string; show: boolean }> = {
 
 export function AdaptiveFab({ onAction }: AdaptiveFabProps) {
   const pathname = usePathname();
-  const config = FAB_CONFIG[pathname];
+  const normalized = pathname && pathname !== '/' ? pathname.replace(/\/$/, '') : pathname;
+  const config = FAB_CONFIG[normalized];
 
   if (!config?.show) return null;
 
