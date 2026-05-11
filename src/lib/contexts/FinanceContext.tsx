@@ -349,15 +349,47 @@ export function useFinanceData() {
     return total;
   }, [state.debts, state.installments]);
 
+  const getPaidExpenses = useCallback(() => {
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    let total = 0;
+    state.debts.forEach((debt) => {
+      state.installments.forEach((i) => {
+        if (i.debtId !== debt.id) return;
+        if (!i.isPaid || !i.paidAt) return;
+
+        // Exclude installments auto-marked as paid because they belong
+        // to months that already passed when the debt was created.
+        const [dy, dm] = i.dueDate.split('-').map(Number);
+        if (dy < year || (dy === year && dm < month)) return;
+
+        // Only count installments whose payment was registered in the
+        // current month. This way the balance drops as bills are paid
+        // and prepaid (current-month payment for a future-month bill)
+        // also reduces the saldo.
+        const paid = new Date(i.paidAt);
+        if (paid.getFullYear() !== year || paid.getMonth() + 1 !== month) return;
+
+        total += debt.installmentValue;
+      });
+    });
+    return total;
+  }, [state.debts, state.installments]);
+
+  // Saldo disponivel: vai abatendo conforme as contas sao pagas no mes,
+  // assim o usuario ve o dinheiro real que ainda tem em maos.
   const getBalance = useCallback(() => {
-    return getTotalIncome() - getTotalExpenses();
-  }, [getTotalIncome, getTotalExpenses]);
+    return getTotalIncome() - getPaidExpenses();
+  }, [getTotalIncome, getPaidExpenses]);
 
   return {
     ...state,
     dispatch,
     getTotalIncome,
     getTotalExpenses,
+    getPaidExpenses,
     getBalance,
   };
 }

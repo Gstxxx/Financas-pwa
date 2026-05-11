@@ -4,7 +4,7 @@ import { cn, fmtBRL, fmtBRLParts } from '@/lib/utils';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
 
 export function HeroBalance() {
-  const { isHydrated, getTotalIncome, getTotalExpenses, getBalance } = useFinanceData();
+  const { isHydrated, getTotalIncome, getTotalExpenses, getPaidExpenses, getBalance } = useFinanceData();
 
   if (!isHydrated) {
     return (
@@ -17,6 +17,10 @@ export function HeroBalance() {
   }
 
   const balance = getBalance();
+  const totalExpenses = getTotalExpenses();
+  const paidExpenses = getPaidExpenses();
+  const pendingExpenses = Math.max(totalExpenses - paidExpenses, 0);
+  const projected = getTotalIncome() - totalExpenses;
   const { sign, integer, cents } = fmtBRLParts(balance);
 
   return (
@@ -35,16 +39,19 @@ export function HeroBalance() {
         {sign}{integer}
         <span className="text-[22px] text-text-2">,{cents}</span>
       </div>
-      <div
-        className={cn(
-          'flex items-center gap-2 mt-3.5 text-[13px] text-text-2 relative',
-        )}
-      >
-        <span className={cn('w-1.5 h-1.5 rounded-full', balance >= 0 ? 'bg-income' : 'bg-expense')} />
+      <div className="flex items-center gap-2 mt-3.5 text-[13px] text-text-2 relative">
+        <span className={cn('w-1.5 h-1.5 rounded-full', projected >= 0 ? 'bg-income' : 'bg-expense')} />
         <span>
-          {balance >= 0
-            ? `${fmtBRL(balance)} sobrando este ciclo`
-            : `Deficit de ${fmtBRL(Math.abs(balance))}`}
+          {pendingExpenses > 0
+            ? `Faltam ${fmtBRL(pendingExpenses)} a pagar este mes`
+            : `Tudo pago este mes`}
+        </span>
+      </div>
+      <div className="flex items-center gap-2 mt-1.5 text-[12px] text-text-3 relative font-mono tabular-nums">
+        <span>
+          {projected >= 0
+            ? `Projetado: +${fmtBRL(projected)}`
+            : `Projetado: −${fmtBRL(Math.abs(projected))}`}
         </span>
       </div>
     </section>
