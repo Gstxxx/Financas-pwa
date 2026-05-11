@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
 import { getNextUnpaidInstallment, isRecurringActiveForMonth, getDebtProgress, getRecurringNextDue } from '@/lib/services/installment';
-import { cn, fmtBRL, fmtDate, getInstallmentStatus, getDueDateLabel, getCurrentMonth, getCurrentYear } from '@/lib/utils';
+import { cn, fmtBRL, fmtDate, getInstallmentStatus, getDueDateLabel, getCurrentMonth, getCurrentYear, fmtMonthYear } from '@/lib/utils';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Chip } from '@/components/ui/Chip';
@@ -123,7 +123,39 @@ export function UpcomingBills() {
         {filteredBills.length === 0 ? (
           <EmptyState message="Nenhuma conta nesta categoria." />
         ) : (
-          filteredBills.map((bill, idx) => (
+          filteredBills.map((bill, idx) => {
+            const [by, bm] = bill.dueDate.split('-').map(Number);
+            const curMonth = getCurrentMonth();
+            const curYear = getCurrentYear();
+            const billKey = by * 100 + bm;
+            const curKey = curYear * 100 + curMonth;
+            const isFuture = billKey > curKey;
+            const prev = filteredBills[idx - 1];
+            let showDivider = false;
+            let dividerLabel = '';
+            if (isFuture) {
+              if (!prev) {
+                showDivider = true;
+                dividerLabel = fmtMonthYear(bm, by);
+              } else {
+                const [py, pm] = prev.dueDate.split('-').map(Number);
+                if (py !== by || pm !== bm) {
+                  showDivider = true;
+                  dividerLabel = fmtMonthYear(bm, by);
+                }
+              }
+            }
+            return (
+            <div key={`group-${bill.debt.id}-${bill.dueDate}`} className="contents">
+            {showDivider && (
+              <div className="flex items-center gap-3 my-1.5 select-none">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-[10.5px] font-medium tracking-[0.16em] uppercase text-text-3">
+                  {dividerLabel}
+                </span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+            )}
             <div
               key={`${bill.debt.id}-${bill.dueDate}`}
               className={cn(
@@ -131,7 +163,8 @@ export function UpcomingBills() {
                 'active:scale-[0.992] active:bg-surface-2',
                 'animate-fadeUp',
                 bill.status === 'atrasado' && 'txn-atrasado',
-                bill.status === 'breve' && 'txn-breve'
+                bill.status === 'breve' && 'txn-breve',
+                isFuture && 'opacity-75'
               )}
               style={{ animationDelay: `${Math.min(idx, 7) * 0.04}s` }}
               onClick={() => setSelectedBill(bill)}
@@ -183,7 +216,9 @@ export function UpcomingBills() {
                 <StatusPill status={bill.status} />
               </div>
             </div>
-          ))
+            </div>
+            );
+          })
         )}
       </div>
 
