@@ -31,7 +31,7 @@ export default function HomePage() {
       <AdaptiveFab
         onAction={() => setShowAddDebt(true)}
         secondaryAction={{
-          label: 'Entrada',
+          label: 'Lancamento',
           onClick: () => setShowAddIncome(true),
         }}
       />
@@ -53,13 +53,13 @@ export default function HomePage() {
       <BottomSheet
         isOpen={showAddIncome}
         onClose={() => setShowAddIncome(false)}
-        title="Nova entrada"
+        title="Novo lancamento"
       >
         <IncomeForm
           onClose={() => setShowAddIncome(false)}
-          onSuccess={() => {
+          onSuccess={(direction) => {
             setShowAddIncome(false);
-            toast('Entrada adicionada!');
+            toast(direction === 'entrada' ? 'Entrada adicionada!' : 'PIX/saida lancada!');
           }}
         />
       </BottomSheet>

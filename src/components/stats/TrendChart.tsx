@@ -8,7 +8,7 @@ import { isRecurringActiveForMonth } from '@/lib/services/installment';
 const MONTH_ABBR = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 export function TrendChart() {
-  const { user, debts, installments, getExtraIncomeForMonth } = useFinanceData();
+  const { user, debts, installments, getExtraIncomeForMonth, getPixOutForMonth } = useFinanceData();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
@@ -16,7 +16,7 @@ export function TrendChart() {
     const data: { month: number; expenses: number; income: number }[] = [];
 
     for (let m = 1; m <= 12; m++) {
-      let expenses = 0;
+      let expenses = getPixOutForMonth(m, currentYear);
 
       debts.forEach((debt) => {
         if (debt.isRecurring) {
@@ -41,7 +41,7 @@ export function TrendChart() {
     }
 
     return data;
-  }, [debts, installments, user, currentYear, getExtraIncomeForMonth]);
+  }, [debts, installments, user, currentYear, getExtraIncomeForMonth, getPixOutForMonth]);
 
   const maxValue = Math.max(...monthlyData.map((d) => Math.max(d.expenses, d.income)), 1);
 

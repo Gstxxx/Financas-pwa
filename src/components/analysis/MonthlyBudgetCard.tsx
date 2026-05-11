@@ -11,10 +11,10 @@ interface MonthlyBudgetCardProps {
 }
 
 export function MonthlyBudgetCard({ month, year }: MonthlyBudgetCardProps) {
-  const { user, debts, installments, getExtraIncomeForMonth } = useFinanceData();
+  const { user, debts, installments, getExtraIncomeForMonth, getPixOutForMonth } = useFinanceData();
 
   const budget = useMemo(() => {
-    let totalExpenses = 0;
+    let totalExpenses = getPixOutForMonth(month, year);
 
     debts.forEach((debt) => {
       if (debt.isRecurring) {
@@ -41,7 +41,7 @@ export function MonthlyBudgetCard({ month, year }: MonthlyBudgetCardProps) {
       remaining: income - totalExpenses,
       usagePercent: income > 0 ? (totalExpenses / income) * 100 : 0,
     };
-  }, [user, debts, installments, month, year, getExtraIncomeForMonth]);
+  }, [user, debts, installments, month, year, getExtraIncomeForMonth, getPixOutForMonth]);
 
   return (
     <div className="bg-surface border border-border rounded-[18px] p-5">

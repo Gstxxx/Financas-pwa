@@ -54,11 +54,14 @@ export interface Goal {
   createdAt: string;
 }
 
+export type IncomeDirection = 'entrada' | 'saida';
+
 export interface Income {
   id: string;
   description: string;
   amount: number;
   date: string; // YYYY-MM-DD
+  direction: IncomeDirection;
   createdAt: string;
 }
 

@@ -307,7 +307,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const installments = Storage.get(STORAGE_KEYS.INSTALLMENTS) || [];
     const budgets = Storage.get(STORAGE_KEYS.BUDGETS) || [];
     const goals = Storage.get(STORAGE_KEYS.GOALS) || [];
-    const incomes = Storage.get<Income[]>(STORAGE_KEYS.INCOMES) || [];
+    const incomes = (Storage.get<Income[]>(STORAGE_KEYS.INCOMES) || []).map((i) =>
+      i.direction ? i : { ...i, direction: 'entrada' as const }
+    );
 
     dispatch({
       type: 'HYDRATE',
@@ -348,6 +350,20 @@ export function useFinanceData() {
   const getExtraIncomeForMonth = useCallback(
     (month: number, year: number) => {
       return state.incomes.reduce((sum, inc) => {
+        if (inc.direction === 'saida') return sum;
+        const [iy, im] = inc.date.split('-').map(Number);
+        return im === month && iy === year ? sum + inc.amount : sum;
+      }, 0);
+    },
+    [state.incomes]
+  );
+
+  // PIX e movimentos de saida lancados pelo usuario: dinheiro que ja saiu
+  // da conta e nao esta associado a uma debt parcelada/recorrente.
+  const getPixOutForMonth = useCallback(
+    (month: number, year: number) => {
+      return state.incomes.reduce((sum, inc) => {
+        if (inc.direction !== 'saida') return sum;
         const [iy, im] = inc.date.split('-').map(Number);
         return im === month && iy === year ? sum + inc.amount : sum;
       }, 0);
@@ -365,7 +381,7 @@ export function useFinanceData() {
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
 
-    let total = 0;
+    let total = getPixOutForMonth(month, year);
 
     state.debts.forEach((debt) => {
       if (debt.isRecurring) {
@@ -385,7 +401,7 @@ export function useFinanceData() {
     });
 
     return total;
-  }, [state.debts, state.installments]);
+  }, [state.debts, state.installments, getPixOutForMonth]);
 
   const getPaidExpenses = useCallback(() => {
     const now = new Date();
@@ -416,17 +432,22 @@ export function useFinanceData() {
     return total;
   }, [state.debts, state.installments]);
 
-  // Saldo disponivel: vai abatendo conforme as contas sao pagas no mes,
-  // assim o usuario ve o dinheiro real que ainda tem em maos.
+  // Saldo disponivel: vai abatendo conforme as contas sao pagas no mes
+  // e tambem conforme PIX/saidas avulsas sao lancadas, refletindo o
+  // dinheiro real que ainda esta em maos.
   const getBalance = useCallback(() => {
-    return getTotalIncome() - getPaidExpenses();
-  }, [getTotalIncome, getPaidExpenses]);
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    return getTotalIncome() - getPaidExpenses() - getPixOutForMonth(month, year);
+  }, [getTotalIncome, getPaidExpenses, getPixOutForMonth]);
 
   return {
     ...state,
     dispatch,
     getTotalIncome,
     getExtraIncomeForMonth,
+    getPixOutForMonth,
     getTotalExpenses,
     getPaidExpenses,
     getBalance,
