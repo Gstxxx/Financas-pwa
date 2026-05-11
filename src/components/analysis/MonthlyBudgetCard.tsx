@@ -11,7 +11,7 @@ interface MonthlyBudgetCardProps {
 }
 
 export function MonthlyBudgetCard({ month, year }: MonthlyBudgetCardProps) {
-  const { user, debts, installments } = useFinanceData();
+  const { user, debts, installments, getExtraIncomeForMonth } = useFinanceData();
 
   const budget = useMemo(() => {
     let totalExpenses = 0;
@@ -33,13 +33,15 @@ export function MonthlyBudgetCard({ month, year }: MonthlyBudgetCardProps) {
       }
     });
 
+    const income = user.salary + getExtraIncomeForMonth(month, year);
+
     return {
-      income: user.salary,
+      income,
       expenses: totalExpenses,
-      remaining: user.salary - totalExpenses,
-      usagePercent: user.salary > 0 ? (totalExpenses / user.salary) * 100 : 0,
+      remaining: income - totalExpenses,
+      usagePercent: income > 0 ? (totalExpenses / income) * 100 : 0,
     };
-  }, [user, debts, installments, month, year]);
+  }, [user, debts, installments, month, year, getExtraIncomeForMonth]);
 
   return (
     <div className="bg-surface border border-border rounded-[18px] p-5">

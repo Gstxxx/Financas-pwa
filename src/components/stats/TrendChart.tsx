@@ -8,7 +8,7 @@ import { isRecurringActiveForMonth } from '@/lib/services/installment';
 const MONTH_ABBR = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 export function TrendChart() {
-  const { user, debts, installments } = useFinanceData();
+  const { user, debts, installments, getExtraIncomeForMonth } = useFinanceData();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
@@ -33,11 +33,15 @@ export function TrendChart() {
         }
       });
 
-      data.push({ month: m, expenses, income: user.salary });
+      data.push({
+        month: m,
+        expenses,
+        income: user.salary + getExtraIncomeForMonth(m, currentYear),
+      });
     }
 
     return data;
-  }, [debts, installments, user, currentYear]);
+  }, [debts, installments, user, currentYear, getExtraIncomeForMonth]);
 
   const maxValue = Math.max(...monthlyData.map((d) => Math.max(d.expenses, d.income)), 1);
 

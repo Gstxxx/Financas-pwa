@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { FinanceState, FinanceAction, User, Debt, Installment, Entity } from '@/lib/types';
+import { FinanceState, FinanceAction, User, Debt, Installment, Entity, Income } from '@/lib/types';
 import { Storage, STORAGE_KEYS } from '@/lib/storage';
 import { generateId } from '@/lib/utils';
 import { generateInstallments } from '@/lib/services/installment';
@@ -39,6 +39,7 @@ const INITIAL_STATE: FinanceState = {
   installments: [],
   budgets: [],
   goals: [],
+  incomes: [],
   isHydrated: false,
 };
 
@@ -233,6 +234,29 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
         goals: state.goals.filter((g) => g.id !== action.payload),
       };
 
+    case 'ADD_INCOME':
+      return {
+        ...state,
+        incomes: [
+          ...state.incomes,
+          { ...action.payload, id: generateId(), createdAt: new Date().toISOString() },
+        ],
+      };
+
+    case 'UPDATE_INCOME': {
+      const { id, ...updates } = action.payload;
+      return {
+        ...state,
+        incomes: state.incomes.map((i) => (i.id === id ? { ...i, ...updates } : i)),
+      };
+    }
+
+    case 'DELETE_INCOME':
+      return {
+        ...state,
+        incomes: state.incomes.filter((i) => i.id !== action.payload),
+      };
+
     case 'RESET_ALL':
       return { ...INITIAL_STATE, isHydrated: true };
 
@@ -269,6 +293,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           debts: normalizedDebts,
           budgets: [],
           goals: [],
+          incomes: [],
         },
       });
       return;
@@ -282,10 +307,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const installments = Storage.get(STORAGE_KEYS.INSTALLMENTS) || [];
     const budgets = Storage.get(STORAGE_KEYS.BUDGETS) || [];
     const goals = Storage.get(STORAGE_KEYS.GOALS) || [];
+    const incomes = Storage.get<Income[]>(STORAGE_KEYS.INCOMES) || [];
 
     dispatch({
       type: 'HYDRATE',
-      payload: { user, entities, debts, installments, budgets, goals } as FinanceState,
+      payload: { user, entities, debts, installments, budgets, goals, incomes } as FinanceState,
     });
   }, []);
 
@@ -298,6 +324,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     Storage.set(STORAGE_KEYS.INSTALLMENTS, state.installments);
     Storage.set(STORAGE_KEYS.BUDGETS, state.budgets);
     Storage.set(STORAGE_KEYS.GOALS, state.goals);
+    Storage.set(STORAGE_KEYS.INCOMES, state.incomes);
   }, [state]);
 
   return (
@@ -318,9 +345,20 @@ export function useFinance() {
 export function useFinanceData() {
   const { state, dispatch } = useFinance();
 
+  const getExtraIncomeForMonth = useCallback(
+    (month: number, year: number) => {
+      return state.incomes.reduce((sum, inc) => {
+        const [iy, im] = inc.date.split('-').map(Number);
+        return im === month && iy === year ? sum + inc.amount : sum;
+      }, 0);
+    },
+    [state.incomes]
+  );
+
   const getTotalIncome = useCallback(() => {
-    return state.user.salary;
-  }, [state.user.salary]);
+    const now = new Date();
+    return state.user.salary + getExtraIncomeForMonth(now.getMonth() + 1, now.getFullYear());
+  }, [state.user.salary, getExtraIncomeForMonth]);
 
   const getTotalExpenses = useCallback(() => {
     const now = new Date();
@@ -388,6 +426,7 @@ export function useFinanceData() {
     ...state,
     dispatch,
     getTotalIncome,
+    getExtraIncomeForMonth,
     getTotalExpenses,
     getPaidExpenses,
     getBalance,

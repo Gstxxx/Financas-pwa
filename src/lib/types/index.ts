@@ -54,6 +54,14 @@ export interface Goal {
   createdAt: string;
 }
 
+export interface Income {
+  id: string;
+  description: string;
+  amount: number;
+  date: string; // YYYY-MM-DD
+  createdAt: string;
+}
+
 export type DebtStatus = 'atrasado' | 'breve' | 'ok' | 'pago';
 
 export interface FinanceState {
@@ -63,6 +71,7 @@ export interface FinanceState {
   installments: Installment[];
   budgets: Budget[];
   goals: Goal[];
+  incomes: Income[];
   isHydrated: boolean;
 }
 
@@ -80,6 +89,9 @@ export type FinanceAction =
   | { type: 'ADD_GOAL'; payload: Omit<Goal, 'id' | 'createdAt'> }
   | { type: 'UPDATE_GOAL'; payload: { id: string } & Partial<Goal> }
   | { type: 'DELETE_GOAL'; payload: string }
+  | { type: 'ADD_INCOME'; payload: Omit<Income, 'id' | 'createdAt'> }
+  | { type: 'UPDATE_INCOME'; payload: { id: string } & Partial<Income> }
+  | { type: 'DELETE_INCOME'; payload: string }
   | { type: 'RESET_ALL' }
   | { type: 'IMPORT_DATA'; payload: Omit<FinanceState, 'isHydrated'> };
 

@@ -30,6 +30,7 @@ export function importFromJSON(jsonString: string): Omit<FinanceState, 'isHydrat
       installments: data.installments || [],
       budgets: data.budgets || [],
       goals: data.goals || [],
+      incomes: data.incomes || [],
     };
   } catch {
     return null;

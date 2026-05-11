@@ -10,10 +10,12 @@ import { QuickActions } from '@/components/home/QuickActions';
 import { UpcomingBills } from '@/components/home/UpcomingBills';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { DebtForm } from '@/components/debts/DebtForm';
+import { IncomeForm } from '@/components/home/IncomeForm';
 import { useToastContext } from '@/lib/contexts/ToastContext';
 
 export default function HomePage() {
   const [showAddDebt, setShowAddDebt] = useState(false);
+  const [showAddIncome, setShowAddIncome] = useState(false);
   const { toast } = useToastContext();
 
   return (
@@ -26,7 +28,13 @@ export default function HomePage() {
         <UpcomingBills />
       </Container>
 
-      <AdaptiveFab onAction={() => setShowAddDebt(true)} />
+      <AdaptiveFab
+        onAction={() => setShowAddDebt(true)}
+        secondaryAction={{
+          label: 'Entrada',
+          onClick: () => setShowAddIncome(true),
+        }}
+      />
 
       <BottomSheet
         isOpen={showAddDebt}
@@ -38,6 +46,20 @@ export default function HomePage() {
           onSuccess={() => {
             setShowAddDebt(false);
             toast('Conta adicionada!');
+          }}
+        />
+      </BottomSheet>
+
+      <BottomSheet
+        isOpen={showAddIncome}
+        onClose={() => setShowAddIncome(false)}
+        title="Nova entrada"
+      >
+        <IncomeForm
+          onClose={() => setShowAddIncome(false)}
+          onSuccess={() => {
+            setShowAddIncome(false);
+            toast('Entrada adicionada!');
           }}
         />
       </BottomSheet>

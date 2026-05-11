@@ -71,6 +71,8 @@ export const STORAGE_KEYS = {
   INSTALLMENTS: 'finance_installments',
   BUDGETS: 'finance_budgets',
   GOALS: 'finance_goals',
+  INCOMES: 'finance_incomes',
   LEGACY_CONTAS: 'contas',
   INSTALL_DISMISSED: 'install_dismissed',
+  DISCORD_WEBHOOK: 'finance_discord_webhook',
 } as const;
