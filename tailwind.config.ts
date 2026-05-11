@@ -52,7 +52,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['var(--font-geist)', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
-        display: ['var(--font-bricolage)', 'sans-serif'],
+        display: ['var(--font-display)', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
         mono: ['var(--font-jetbrains)', 'monospace'],
       },
       keyframes: {

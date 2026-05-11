@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Bricolage_Grotesque, JetBrains_Mono } from 'next/font/google';
+import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import { GeistSans } from 'geist/font/sans';
 import { FinanceProvider } from '@/lib/contexts/FinanceContext';
 import { ToastProvider } from '@/lib/contexts/ToastContext';
@@ -7,9 +7,9 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { PWARegister } from '@/components/layout/PWARegister';
 import '@/styles/globals.css';
 
-const bricolage = Bricolage_Grotesque({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  variable: '--font-bricolage',
+  variable: '--font-display',
   display: 'swap',
 });
 
@@ -46,7 +46,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${GeistSans.variable} ${bricolage.variable} ${jetbrains.variable}`}
+      className={`${GeistSans.variable} ${jakarta.variable} ${jetbrains.variable}`}
     >
       <head>
         <link rel="apple-touch-icon" href="/icon.svg" />
