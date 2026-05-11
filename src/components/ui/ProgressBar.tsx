@@ -17,7 +17,7 @@ export function ProgressBar({ value, label }: ProgressBarProps) {
         />
       </div>
       {label && (
-        <div className="text-[11px] text-text-3 mt-1 tabular-nums font-mono">{label}</div>
+        <div className="text-[11px] text-text-3 mt-1 tabular-nums">{label}</div>
       )}
     </div>
   );

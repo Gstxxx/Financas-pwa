@@ -47,7 +47,7 @@ export function HeroBalance() {
             : `Tudo pago este mes`}
         </span>
       </div>
-      <div className="flex items-center gap-2 mt-1.5 text-[12px] text-text-3 relative font-mono tabular-nums">
+      <div className="flex items-center gap-2 mt-1.5 text-[12px] text-text-3 relative tabular-nums">
         <span>
           {projected >= 0
             ? `Projetado: +${fmtBRL(projected)}`

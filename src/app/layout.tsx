@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { GeistSans } from 'geist/font/sans';
 import { FinanceProvider } from '@/lib/contexts/FinanceContext';
 import { ToastProvider } from '@/lib/contexts/ToastContext';
@@ -10,12 +10,6 @@ import '@/styles/globals.css';
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-display',
-  display: 'swap',
-});
-
-const jetbrains = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-jetbrains',
   display: 'swap',
 });
 
@@ -46,7 +40,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${GeistSans.variable} ${jakarta.variable} ${jetbrains.variable}`}
+      className={`${GeistSans.variable} ${jakarta.variable}`}
     >
       <head>
         <link rel="apple-touch-icon" href="/icon.svg" />

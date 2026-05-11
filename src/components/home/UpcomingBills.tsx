@@ -97,7 +97,7 @@ export function UpcomingBills() {
     <>
       <div className="flex justify-between items-baseline mt-6 mb-2.5">
         <h2 className="font-display text-[19px] font-semibold tracking-tight">Contas</h2>
-        <span className="text-xs text-text-3 tabular-nums font-mono">
+        <span className="text-xs text-text-3 tabular-nums">
           {filteredBills.length}/{bills.length}
         </span>
       </div>
@@ -210,7 +210,7 @@ export function UpcomingBills() {
               )}
 
               <div className="flex justify-between items-center text-xs text-text-3 flex-wrap gap-2">
-                <span className="flex items-center gap-[5px] font-mono text-[11.5px]">
+                <span className="flex items-center gap-[5px] text-[11.5px]">
                   {fmtDate(bill.dueDate)} · {getDueDateLabel(bill.dueDate)}
                 </span>
                 <StatusPill status={bill.status} />

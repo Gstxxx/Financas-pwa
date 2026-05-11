@@ -102,7 +102,7 @@ export function ExpenseBreakdown({ month, year }: ExpenseBreakdownProps) {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium tabular-nums">{fmtBRL(item.total)}</span>
-              <span className="text-[11px] text-text-3 font-mono tabular-nums w-12 text-right">
+              <span className="text-[11px] text-text-3 tabular-nums w-12 text-right">
                 {item.percent.toFixed(1)}%
               </span>
             </div>

@@ -110,11 +110,11 @@ export function DebtList() {
 
               <div className="flex justify-between items-center text-xs text-text-3 flex-wrap gap-2">
                 {dueDate ? (
-                  <span className="font-mono text-[11.5px]">
+                  <span className="text-[11.5px]">
                     {fmtDate(dueDate)} · {getDueDateLabel(dueDate)}
                   </span>
                 ) : (
-                  <span className="font-mono text-[11.5px]">Concluido</span>
+                  <span className="text-[11.5px]">Concluido</span>
                 )}
                 <StatusPill status={status} />
               </div>

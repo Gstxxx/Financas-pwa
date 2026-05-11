@@ -76,7 +76,7 @@ export function MonthlyBudgetCard({ month, year }: MonthlyBudgetCardProps) {
       <div className="mt-4">
         <div className="flex justify-between text-[11px] text-text-3 mb-1.5">
           <span>Uso do orcamento</span>
-          <span className="font-mono tabular-nums">{budget.usagePercent.toFixed(1)}%</span>
+          <span className="tabular-nums">{budget.usagePercent.toFixed(1)}%</span>
         </div>
         <ProgressBar value={budget.usagePercent} />
       </div>

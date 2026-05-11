@@ -70,7 +70,7 @@ export function TrendChart() {
                 />
               </div>
               <span className={cn(
-                'text-[9px] font-mono',
+                'text-[9px]',
                 isCurrent ? 'text-accent font-semibold' : 'text-text-3'
               )}>
                 {MONTH_ABBR[d.month - 1]}
