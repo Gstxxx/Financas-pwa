@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
-import { getNextUnpaidInstallment, isRecurringActiveForMonth, getDebtProgress } from '@/lib/services/installment';
-import { cn, fmtBRL, fmtDate, getInstallmentStatus, getDueDateLabel, makeDueDate, getCurrentMonth, getCurrentYear } from '@/lib/utils';
+import { getNextUnpaidInstallment, isRecurringActiveForMonth, getDebtProgress, getRecurringNextDue } from '@/lib/services/installment';
+import { cn, fmtBRL, fmtDate, getInstallmentStatus, getDueDateLabel, getCurrentMonth, getCurrentYear } from '@/lib/utils';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Chip } from '@/components/ui/Chip';
@@ -37,15 +37,11 @@ export function UpcomingBills() {
     debts.forEach((debt) => {
       if (debt.isRecurring) {
         if (isRecurringActiveForMonth(debt, month, year)) {
-          const dueDate = makeDueDate(year, month, debt.dueDay);
-          // Check if paid this month
-          const paidInst = installments.find(
-            (i) => i.debtId === debt.id && i.dueDate.startsWith(`${year}-${String(month).padStart(2, '0')}`) && i.isPaid
-          );
+          const next = getRecurringNextDue(debt, installments, month, year);
           items.push({
             debt,
-            dueDate,
-            status: paidInst ? 'pago' : getInstallmentStatus(dueDate, false),
+            dueDate: next.dueDate,
+            status: getInstallmentStatus(next.dueDate, false),
           });
         }
       } else {
@@ -148,23 +144,25 @@ export function UpcomingBills() {
                   <div className="font-display text-[17px] font-semibold tracking-tight capitalize break-words">
                     {bill.debt.accountName}
                   </div>
-                  {bill.debt.entityName && (
-                    <div className="flex gap-[5px] flex-wrap mt-1.5">
-                      <span className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] bg-white/[0.06] text-text-2 tracking-wide uppercase">
-                        {bill.debt.entityName}
+                  <div className="flex gap-[5px] flex-wrap mt-1.5">
+                    {bill.debt.entityNames.map((name) => (
+                      <span
+                        key={name}
+                        className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] bg-white/[0.06] text-text-2 tracking-wide uppercase"
+                      >
+                        {name}
                       </span>
-                      {bill.debt.isRecurring && (
-                        <span className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] tag-fixo tracking-wide uppercase">
-                          Fixo
-                        </span>
-                      )}
-                      {!bill.debt.isRecurring && (
-                        <span className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] tag-parcelado tracking-wide uppercase">
-                          Parcelado
-                        </span>
-                      )}
-                    </div>
-                  )}
+                    ))}
+                    {bill.debt.isRecurring ? (
+                      <span className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] tag-fixo tracking-wide uppercase">
+                        Fixo
+                      </span>
+                    ) : (
+                      <span className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] tag-parcelado tracking-wide uppercase">
+                        Parcelado
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="font-display text-[17px] font-semibold tabular-nums tracking-tight whitespace-nowrap">
                   − {fmtBRL(bill.debt.installmentValue).replace('R$', 'R$ ')}
@@ -196,11 +194,16 @@ export function UpcomingBills() {
       >
         {selectedBill && (
           <>
-            {selectedBill.debt.entityName && (
+            {selectedBill.debt.entityNames.length > 0 && (
               <div className="flex gap-[5px] flex-wrap mb-3.5">
-                <span className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] bg-white/[0.06] text-text-2 tracking-wide uppercase">
-                  {selectedBill.debt.entityName}
-                </span>
+                {selectedBill.debt.entityNames.map((name) => (
+                  <span
+                    key={name}
+                    className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] bg-white/[0.06] text-text-2 tracking-wide uppercase"
+                  >
+                    {name}
+                  </span>
+                ))}
               </div>
             )}
             <div className="space-y-0">

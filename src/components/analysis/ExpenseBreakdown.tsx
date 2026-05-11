@@ -44,13 +44,16 @@ export function ExpenseBreakdown({ month, year }: ExpenseBreakdownProps) {
       }
 
       if (amount > 0) {
-        const category = debt.entityName || 'Sem categoria';
-        const existing = categoryTotals.get(category);
-        if (existing) {
-          existing.total += amount;
-        } else {
-          categoryTotals.set(category, { name: category, total: amount });
-        }
+        const names = debt.entityNames.length > 0 ? debt.entityNames : ['Sem categoria'];
+        const share = amount / names.length;
+        names.forEach((category) => {
+          const existing = categoryTotals.get(category);
+          if (existing) {
+            existing.total += share;
+          } else {
+            categoryTotals.set(category, { name: category, total: share });
+          }
+        });
       }
     });
 

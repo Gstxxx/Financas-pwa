@@ -18,8 +18,8 @@ export interface Debt {
   dueDay: number;
   startMonth: number;
   startYear: number;
-  entityId: string;
-  entityName: string;
+  entityIds: string[];
+  entityNames: string[];
   isRecurring: boolean;
   createdAt: string;
 }

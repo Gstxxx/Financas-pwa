@@ -19,7 +19,7 @@ export function EntityList() {
   }
 
   const getDebtCount = (entityId: string) =>
-    debts.filter((d) => d.entityId === entityId).length;
+    debts.filter((d) => d.entityIds.includes(entityId)).length;
 
   const handleEdit = (e: React.FormEvent) => {
     e.preventDefault();

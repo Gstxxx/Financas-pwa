@@ -44,8 +44,11 @@ export function migrateLegacyData(): {
   legacy.forEach((t) => {
     if (t.direction === 'entrada') return; // Skip income entries
 
-    const tag = (t.tags || [])[0] || 'outros';
-    const entity = entityMap.get(tag) || entityMap.get('outros');
+    const tags = (t.tags || []).filter((tag) => tag !== 'parcelado' && tag !== 'fixo');
+    const tagsResolved = tags.length > 0 ? tags : ['outros'];
+    const matchedEntities = tagsResolved
+      .map((tag) => entityMap.get(tag))
+      .filter((e): e is Entity => Boolean(e));
 
     const isParcelado = (t.tags || []).includes('parcelado');
     const hasEndDate = !!t.endDate;
@@ -71,8 +74,8 @@ export function migrateLegacyData(): {
       dueDay: dueDate.getDate(),
       startMonth: startDate.getMonth() + 1,
       startYear: startDate.getFullYear(),
-      entityId: entity?.id || '',
-      entityName: entity?.name || tag,
+      entityIds: matchedEntities.map((e) => e.id),
+      entityNames: matchedEntities.map((e) => e.name),
       isRecurring: numberOfInstallments === 0,
       createdAt: new Date().toISOString(),
     };

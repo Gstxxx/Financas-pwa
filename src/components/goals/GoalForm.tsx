@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
 import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { getTodayISO } from '@/lib/utils';
+import { getTodayISO, parseMoney } from '@/lib/utils';
 
 interface GoalFormProps {
   onClose: () => void;
@@ -26,8 +26,8 @@ export function GoalForm({ onClose, onSuccess }: GoalFormProps) {
       payload: {
         name: name.trim(),
         type,
-        targetValue: parseFloat(targetValue) || 0,
-        currentValue: parseFloat(currentValue) || 0,
+        targetValue: parseMoney(targetValue),
+        currentValue: parseMoney(currentValue),
         deadline: deadline || getTodayISO(),
       },
     });
@@ -57,23 +57,19 @@ export function GoalForm({ onClose, onSuccess }: GoalFormProps) {
       />
       <Input
         label="Valor alvo (R$)"
-        type="number"
-        step="0.01"
-        min="0"
+        type="text"
+        inputMode="decimal"
         value={targetValue}
         onChange={(e) => setTargetValue(e.target.value)}
         required
         placeholder="10000"
-        inputMode="decimal"
       />
       <Input
         label="Valor atual (R$)"
-        type="number"
-        step="0.01"
-        min="0"
+        type="text"
+        inputMode="decimal"
         value={currentValue}
         onChange={(e) => setCurrentValue(e.target.value)}
-        inputMode="decimal"
       />
       <Input
         label="Prazo"

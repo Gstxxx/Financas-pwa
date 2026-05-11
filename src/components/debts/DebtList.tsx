@@ -3,17 +3,24 @@
 import { useState } from 'react';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
 import { cn, fmtBRL, fmtDate, getInstallmentStatus, getDueDateLabel, makeDueDate, getCurrentMonth, getCurrentYear } from '@/lib/utils';
-import { getNextUnpaidInstallment, getDebtProgress, isRecurringActiveForMonth, isDebtFullyPaid } from '@/lib/services/installment';
+import {
+  getNextUnpaidInstallment,
+  getDebtProgress,
+  isDebtFullyPaid,
+  getRecurringNextDue,
+} from '@/lib/services/installment';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
+import { DebtForm } from '@/components/debts/DebtForm';
 import type { Debt } from '@/lib/types';
 
 export function DebtList() {
-  const { debts, installments, entities, dispatch } = useFinanceData();
+  const { debts, installments, dispatch } = useFinanceData();
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
+  const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const month = getCurrentMonth();
   const year = getCurrentYear();
 
@@ -38,11 +45,9 @@ export function DebtList() {
           let progress: number | undefined;
 
           if (isRecurring) {
-            dueDate = makeDueDate(year, month, debt.dueDay);
-            const paidInst = installments.find(
-              (i) => i.debtId === debt.id && i.dueDate.startsWith(`${year}-${String(month).padStart(2, '0')}`) && i.isPaid
-            );
-            status = paidInst ? 'pago' : getInstallmentStatus(dueDate, false);
+            const next = getRecurringNextDue(debt, installments, month, year);
+            dueDate = next.dueDate;
+            status = getInstallmentStatus(dueDate, false);
           } else {
             const fullyPaid = isDebtFullyPaid(debt, installments);
             if (fullyPaid) {
@@ -78,11 +83,14 @@ export function DebtList() {
                     {debt.accountName}
                   </div>
                   <div className="flex gap-[5px] flex-wrap mt-1">
-                    {debt.entityName && (
-                      <span className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] bg-white/[0.06] text-text-2 uppercase tracking-wide">
-                        {debt.entityName}
+                    {debt.entityNames.map((name) => (
+                      <span
+                        key={name}
+                        className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] bg-white/[0.06] text-text-2 uppercase tracking-wide"
+                      >
+                        {name}
                       </span>
-                    )}
+                    ))}
                     <span className={cn(
                       'text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] uppercase tracking-wide',
                       isRecurring ? 'tag-fixo' : 'tag-parcelado'
@@ -116,7 +124,7 @@ export function DebtList() {
       </div>
 
       <BottomSheet
-        isOpen={!!selectedDebt}
+        isOpen={!!selectedDebt && !editingDebt}
         onClose={() => setSelectedDebt(null)}
         title={selectedDebt?.accountName}
       >
@@ -126,9 +134,14 @@ export function DebtList() {
               <DetailRow label="Valor" value={fmtBRL(selectedDebt.installmentValue)} />
               <DetailRow label="Dia vencimento" value={String(selectedDebt.dueDay)} />
               <DetailRow label="Tipo" value={selectedDebt.isRecurring ? 'Recorrente' : `${selectedDebt.numberOfInstallments} parcelas`} />
-              {selectedDebt.entityName && <DetailRow label="Categoria" value={selectedDebt.entityName} />}
+              {selectedDebt.entityNames.length > 0 && (
+                <DetailRow label="Categorias" value={selectedDebt.entityNames.join(', ')} />
+              )}
               <DetailRow label="Inicio" value={`${selectedDebt.startMonth}/${selectedDebt.startYear}`} />
             </div>
+            <Button variant="primary" onClick={() => setEditingDebt(selectedDebt)}>
+              Editar conta
+            </Button>
             <Button variant="ghost" onClick={() => setSelectedDebt(null)}>
               Fechar
             </Button>
@@ -136,6 +149,23 @@ export function DebtList() {
               Excluir conta
             </Button>
           </>
+        )}
+      </BottomSheet>
+
+      <BottomSheet
+        isOpen={!!editingDebt}
+        onClose={() => setEditingDebt(null)}
+        title="Editar conta"
+      >
+        {editingDebt && (
+          <DebtForm
+            initialDebt={editingDebt}
+            onClose={() => setEditingDebt(null)}
+            onSuccess={() => {
+              setEditingDebt(null);
+              setSelectedDebt(null);
+            }}
+          />
         )}
       </BottomSheet>
     </>

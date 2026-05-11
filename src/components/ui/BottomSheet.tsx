@@ -32,9 +32,6 @@ export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetPro
         'bg-black/70 backdrop-blur-[8px]',
         isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
       )}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
       <div
         className={cn(
@@ -47,11 +44,23 @@ export function BottomSheet({ isOpen, onClose, title, children }: BottomSheetPro
         aria-modal="true"
       >
         <div className="w-9 h-1 rounded-sm bg-border-strong mx-auto mb-4" />
-        {title && (
-          <h3 className="font-display text-[22px] font-semibold mb-3.5 tracking-tight">
-            {title}
-          </h3>
-        )}
+        <div className="flex items-start justify-between gap-3 mb-3.5">
+          {title ? (
+            <h3 className="font-display text-[22px] font-semibold tracking-tight flex-1 min-w-0 break-words">
+              {title}
+            </h3>
+          ) : (
+            <span />
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="shrink-0 -mt-1 -mr-1 w-9 h-9 rounded-full flex items-center justify-center text-text-2 hover:text-text hover:bg-white/[0.06] active:scale-95 transition-colors text-xl leading-none"
+          >
+            &#x2715;
+          </button>
+        </div>
         {children}
       </div>
     </div>

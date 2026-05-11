@@ -1,5 +1,5 @@
 import { Installment, Debt } from '@/lib/types';
-import { generateId, makeDueDate } from '@/lib/utils';
+import { generateId, makeDueDate, getCurrentMonth, getCurrentYear } from '@/lib/utils';
 
 export function generateInstallments(debt: Debt): Installment[] {
   if (debt.isRecurring) return [];
@@ -7,17 +7,21 @@ export function generateInstallments(debt: Debt): Installment[] {
   const installments: Installment[] = [];
   let month = debt.startMonth;
   let year = debt.startYear;
+  const curMonth = getCurrentMonth();
+  const curYear = getCurrentYear();
+  const nowISO = new Date().toISOString();
 
   for (let i = 1; i <= debt.numberOfInstallments; i++) {
     const dueDate = makeDueDate(year, month, debt.dueDay);
+    const isPast = year < curYear || (year === curYear && month < curMonth);
     installments.push({
       id: generateId() + `-${i}`,
       debtId: debt.id,
       installmentNumber: i,
       dueDate,
-      isPaid: false,
-      paidAt: null,
-      createdAt: new Date().toISOString(),
+      isPaid: isPast,
+      paidAt: isPast ? nowISO : null,
+      createdAt: nowISO,
     });
 
     month++;
@@ -86,4 +90,30 @@ export function getRecurringPaidInstallment(
   return installments.find(
     (i) => i.debtId === debtId && i.dueDate.startsWith(dueDate) && i.isPaid
   );
+}
+
+// For recurring debts: returns the next month not yet paid, starting from
+// the given month. Advances forward while the current month is already paid.
+export function getRecurringNextDue(
+  debt: Debt,
+  installments: Installment[],
+  startMonth: number,
+  startYear: number
+): { dueDate: string; month: number; year: number } {
+  let m = startMonth;
+  let y = startYear;
+  // Cap the loop so a corrupt state can't hang us.
+  for (let i = 0; i < 120; i++) {
+    const prefix = `${y}-${String(m).padStart(2, '0')}`;
+    const paid = installments.some(
+      (inst) => inst.debtId === debt.id && inst.dueDate.startsWith(prefix) && inst.isPaid
+    );
+    if (!paid) break;
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+  }
+  return { dueDate: makeDueDate(y, m, debt.dueDay), month: m, year: y };
 }

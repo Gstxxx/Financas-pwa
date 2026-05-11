@@ -14,6 +14,25 @@ export function fmtBRL(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+// Parse money inputs that may use comma or dot as decimal separator,
+// and may include thousands separators (e.g. "1.234,56" or "1,234.56").
+export function parseMoney(input: string | number | null | undefined): number {
+  if (input === null || input === undefined) return 0;
+  if (typeof input === 'number') return isFinite(input) ? input : 0;
+  const s = String(input).trim().replace(/[^\d,.-]/g, '');
+  if (!s) return 0;
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+  let normalized = s;
+  if (lastComma > lastDot) {
+    normalized = s.replace(/\./g, '').replace(',', '.');
+  } else if (lastDot > lastComma) {
+    normalized = s.replace(/,/g, '');
+  }
+  const v = parseFloat(normalized);
+  return isNaN(v) ? 0 : v;
+}
+
 export function fmtBRLParts(value: number): { sign: string; integer: string; cents: string } {
   const abs = Math.abs(value);
   const sign = value < 0 ? '−' : '';

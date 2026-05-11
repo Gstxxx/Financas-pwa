@@ -1,11 +1,30 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { FinanceState, FinanceAction, User, Debt, Installment } from '@/lib/types';
+import { FinanceState, FinanceAction, User, Debt, Installment, Entity } from '@/lib/types';
 import { Storage, STORAGE_KEYS } from '@/lib/storage';
 import { generateId } from '@/lib/utils';
 import { generateInstallments } from '@/lib/services/installment';
 import { migrateLegacyData } from '@/lib/services/migration';
+
+type LegacyDebt = Debt & { entityId?: string; entityName?: string };
+
+function normalizeDebt(d: LegacyDebt, entities: Entity[]): Debt {
+  if (Array.isArray(d.entityIds) && Array.isArray(d.entityNames)) {
+    return {
+      ...d,
+      entityIds: d.entityIds.filter(Boolean),
+      entityNames: d.entityNames.filter(Boolean),
+    };
+  }
+  const ids = d.entityId ? [d.entityId] : [];
+  const names = ids.map((id) => {
+    const ent = entities.find((e) => e.id === id);
+    return ent?.name || d.entityName || '';
+  }).filter(Boolean);
+  const { entityId: _eid, entityName: _en, ...rest } = d;
+  return { ...rest, entityIds: ids, entityNames: names };
+}
 
 const DEFAULT_USER: User = {
   salary: 4500,
@@ -43,10 +62,15 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
     case 'UPDATE_ENTITY': {
       const { id, ...updates } = action.payload;
       const entities = state.entities.map((e) => (e.id === id ? { ...e, ...updates } : e));
-      // Cascade entity name to debts
       const updated = entities.find((e) => e.id === id);
       const debts = updated
-        ? state.debts.map((d) => (d.entityId === id ? { ...d, entityName: updated.name } : d))
+        ? state.debts.map((d) => {
+            if (!d.entityIds.includes(id)) return d;
+            const entityNames = d.entityIds.map(
+              (eid) => entities.find((e) => e.id === eid)?.name || ''
+            ).filter(Boolean);
+            return { ...d, entityNames };
+          })
         : state.debts;
       return { ...state, entities, debts };
     }
@@ -56,9 +80,13 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
       return {
         ...state,
         entities: state.entities.filter((e) => e.id !== entityId),
-        debts: state.debts.map((d) =>
-          d.entityId === entityId ? { ...d, entityId: '', entityName: '' } : d
-        ),
+        debts: state.debts.map((d) => {
+          if (!d.entityIds.includes(entityId)) return d;
+          const idx = d.entityIds.indexOf(entityId);
+          const entityIds = d.entityIds.filter((_, i) => i !== idx);
+          const entityNames = d.entityNames.filter((_, i) => i !== idx);
+          return { ...d, entityIds, entityNames };
+        }),
       };
     }
 
@@ -80,9 +108,54 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
 
     case 'UPDATE_DEBT': {
       const { id, ...updates } = action.payload;
+      const oldDebt = state.debts.find((d) => d.id === id);
+      if (!oldDebt) return state;
+
+      const merged: Debt = { ...oldDebt, ...updates };
+      const numInst = merged.numberOfInstallments;
+      merged.isRecurring = numInst === 0;
+
+      const structuralChanged =
+        (updates.numberOfInstallments !== undefined && updates.numberOfInstallments !== oldDebt.numberOfInstallments) ||
+        (updates.startMonth !== undefined && updates.startMonth !== oldDebt.startMonth) ||
+        (updates.startYear !== undefined && updates.startYear !== oldDebt.startYear) ||
+        (updates.dueDay !== undefined && updates.dueDay !== oldDebt.dueDay) ||
+        merged.isRecurring !== oldDebt.isRecurring;
+
+      if (!structuralChanged) {
+        return {
+          ...state,
+          debts: state.debts.map((d) => (d.id === id ? merged : d)),
+        };
+      }
+
+      if (merged.isRecurring) {
+        return {
+          ...state,
+          debts: state.debts.map((d) => (d.id === id ? merged : d)),
+          installments: state.installments.filter((i) => i.debtId !== id || i.installmentNumber === 0),
+        };
+      }
+
+      // Regenerate installments preserving paid state by installmentNumber
+      const oldPaidByNumber = new Map<number, Installment>();
+      state.installments
+        .filter((i) => i.debtId === id && i.isPaid)
+        .forEach((i) => oldPaidByNumber.set(i.installmentNumber, i));
+
+      const newInstallments = generateInstallments(merged).map((inst) => {
+        const oldPaid = oldPaidByNumber.get(inst.installmentNumber);
+        if (oldPaid) return { ...inst, isPaid: true, paidAt: oldPaid.paidAt };
+        return inst;
+      });
+
       return {
         ...state,
-        debts: state.debts.map((d) => (d.id === id ? { ...d, ...updates } : d)),
+        debts: state.debts.map((d) => (d.id === id ? merged : d)),
+        installments: [
+          ...state.installments.filter((i) => i.debtId !== id),
+          ...newInstallments,
+        ],
       };
     }
 
@@ -186,10 +259,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     // Try migration first
     const migrated = migrateLegacyData();
     if (migrated) {
+      const normalizedDebts = migrated.debts.map((d) =>
+        normalizeDebt(d as LegacyDebt, migrated.entities)
+      );
       dispatch({
         type: 'HYDRATE',
         payload: {
           ...migrated,
+          debts: normalizedDebts,
           budgets: [],
           goals: [],
         },
@@ -199,8 +276,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
     // Load from storage
     const user = Storage.get<User>(STORAGE_KEYS.USER) || DEFAULT_USER;
-    const entities = Storage.get(STORAGE_KEYS.ENTITIES) || [];
-    const debts = Storage.get(STORAGE_KEYS.DEBTS) || [];
+    const entities = (Storage.get<Entity[]>(STORAGE_KEYS.ENTITIES) || []);
+    const rawDebts = (Storage.get<LegacyDebt[]>(STORAGE_KEYS.DEBTS) || []);
+    const debts = rawDebts.map((d) => normalizeDebt(d, entities));
     const installments = Storage.get(STORAGE_KEYS.INSTALLMENTS) || [];
     const budgets = Storage.get(STORAGE_KEYS.BUDGETS) || [];
     const goals = Storage.get(STORAGE_KEYS.GOALS) || [];
