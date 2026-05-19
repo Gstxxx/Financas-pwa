@@ -31,30 +31,39 @@ export function SettingsForm({ onSave }: SettingsFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-[18px] p-5">
-      <h3 className="font-display text-lg font-semibold mb-4">Configuracoes</h3>
-      <Input
-        label="Salario mensal (R$)"
-        type="text"
-        inputMode="decimal"
-        value={salary}
-        onChange={(e) => setSalary(e.target.value)}
-      />
-      <Input
-        label="Saldo atual (R$)"
-        type="text"
-        inputMode="decimal"
-        value={balance}
-        onChange={(e) => setBalance(e.target.value)}
-      />
-      <Input
-        label="Orcamento mensal (R$)"
-        type="text"
-        inputMode="decimal"
-        value={budget}
-        onChange={(e) => setBudget(e.target.value)}
-      />
-      <Button type="submit">Salvar configuracoes</Button>
-    </form>
+    <div style={{ padding: '0 22px 14px' }}>
+      <form onSubmit={handleSubmit} className="card" style={{ padding: 22 }}>
+        <h3 className="t-h3" style={{ marginBottom: 18 }}>
+          Configurações
+        </h3>
+        <Input
+          label="Salário mensal (R$)"
+          type="text"
+          inputMode="decimal"
+          numeric
+          value={salary}
+          onChange={(e) => setSalary(e.target.value)}
+        />
+        <Input
+          label="Saldo atual (R$)"
+          type="text"
+          inputMode="decimal"
+          numeric
+          value={balance}
+          onChange={(e) => setBalance(e.target.value)}
+        />
+        <Input
+          label="Orçamento mensal (R$)"
+          type="text"
+          inputMode="decimal"
+          numeric
+          value={budget}
+          onChange={(e) => setBudget(e.target.value)}
+        />
+        <Button type="submit" variant="accent">
+          Salvar configurações
+        </Button>
+      </form>
+    </div>
   );
 }

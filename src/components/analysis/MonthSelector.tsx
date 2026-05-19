@@ -1,6 +1,11 @@
 'use client';
 
-import { fmtMonthYear } from '@/lib/utils';
+import { I } from '@/components/icons/I';
+
+const MONTHS_FULL = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
 
 interface MonthSelectorProps {
   month: number;
@@ -19,26 +24,58 @@ export function MonthSelector({ month, year, onChange }: MonthSelectorProps) {
     else onChange(month + 1, year);
   };
 
+  const navBtn: React.CSSProperties = {
+    padding: 0,
+    height: 34,
+    width: 34,
+    borderRadius: 99,
+    border: '1px solid var(--hair)',
+    background: 'var(--surface)',
+    color: 'var(--ink-mid)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background-color 0.18s',
+  };
+
   return (
-    <div className="flex items-center justify-between bg-surface border border-border rounded-[18px] px-4 py-3">
-      <button
-        className="w-8 h-8 rounded-full bg-bg flex items-center justify-center text-text-2 transition-colors active:bg-surface-2"
-        onClick={prev}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
+    <div
+      className="card-flat"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '10px 14px',
+      }}
+    >
+      <button type="button" onClick={prev} style={navBtn} aria-label="Mês anterior">
+        <I.chevL size={14} />
       </button>
-      <span className="font-display text-base font-semibold">
-        {fmtMonthYear(month, year)}
-      </span>
-      <button
-        className="w-8 h-8 rounded-full bg-bg flex items-center justify-center text-text-2 transition-colors active:bg-surface-2"
-        onClick={next}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
+      <div style={{ textAlign: 'center' }}>
+        <div
+          style={{
+            fontFamily: 'var(--f-sans)',
+            fontWeight: 500,
+            fontSize: 17,
+            letterSpacing: '-0.005em',
+          }}
+        >
+          {MONTHS_FULL[month - 1]}{' '}
+          <span
+            style={{
+              color: 'var(--ink-mute)',
+              fontFamily: 'var(--f-mono)',
+              fontWeight: 400,
+              fontSize: 14,
+            }}
+          >
+            {year}
+          </span>
+        </div>
+      </div>
+      <button type="button" onClick={next} style={navBtn} aria-label="Próximo mês">
+        <I.chev size={14} />
       </button>
     </div>
   );

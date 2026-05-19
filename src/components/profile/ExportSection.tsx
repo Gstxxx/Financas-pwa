@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { I } from '@/components/icons/I';
 import { downloadJSON, importFromJSON, exportToDiscord } from '@/lib/services/export';
 import { Storage, STORAGE_KEYS } from '@/lib/storage';
 
@@ -44,7 +45,7 @@ export function ExportSection({ onToast }: ExportSectionProps) {
         dispatch({ type: 'IMPORT_DATA', payload: data });
         onToast('Dados importados com sucesso!');
       } else {
-        onToast('Arquivo invalido.');
+        onToast('Arquivo inválido.');
       }
     };
     reader.readAsText(file);
@@ -70,38 +71,44 @@ export function ExportSection({ onToast }: ExportSectionProps) {
   };
 
   return (
-    <div className="bg-surface border border-border rounded-[18px] p-5 space-y-3">
-      <h3 className="font-display text-lg font-semibold mb-4">Exportar / Importar</h3>
+    <div style={{ padding: '0 22px 14px' }}>
+      <div className="card" style={{ padding: 22 }}>
+        <h3 className="t-h3" style={{ marginBottom: 18 }}>
+          Exportar / Importar
+        </h3>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <Button type="button" variant="ghost" onClick={handleExport}>
+            <I.download size={15} color="var(--ink-mid)" /> Exportar JSON
+          </Button>
+          <Button type="button" variant="ghost" onClick={handleImport}>
+            <I.upload size={15} color="var(--ink-mid)" /> Importar JSON
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".json"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+        </div>
 
-      <Button onClick={handleExport}>
-        Exportar JSON
-      </Button>
-
-      <Button variant="ghost" onClick={handleImport}>
-        Importar JSON
-      </Button>
-      <input
-        ref={fileRef}
-        type="file"
-        accept=".json"
-        className="hidden"
-        onChange={handleFileChange}
-      />
-
-      <div className="pt-3 border-t border-border mt-3">
-        <Input
-          label="Discord Webhook URL"
-          value={webhookUrl}
-          onChange={(e) => handleWebhookChange(e.target.value)}
-          placeholder="https://discord.com/api/webhooks/..."
-        />
-        <Button
-          variant="ghost"
-          onClick={handleDiscord}
-          disabled={sending || !webhookUrl.trim()}
-        >
-          {sending ? 'Enviando...' : 'Enviar para Discord'}
-        </Button>
+        <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1px solid var(--hair-soft)' }}>
+          <Input
+            label="Discord webhook URL"
+            value={webhookUrl}
+            onChange={(e) => handleWebhookChange(e.target.value)}
+            placeholder="https://discord.com/api/webhooks/..."
+          />
+          <Button
+            variant="ghost"
+            onClick={handleDiscord}
+            disabled={sending || !webhookUrl.trim()}
+            type="button"
+          >
+            <I.send size={14} color="var(--ink-mid)" />
+            {sending ? 'Enviando...' : 'Enviar para Discord'}
+          </Button>
+        </div>
       </div>
     </div>
   );

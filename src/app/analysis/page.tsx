@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Container } from '@/components/layout/Container';
-import { Header } from '@/components/layout/Header';
+import { PageHead } from '@/components/ui/PageHead';
 import { MonthSelector } from '@/components/analysis/MonthSelector';
 import { MonthlyBudgetCard } from '@/components/analysis/MonthlyBudgetCard';
 import { ExpenseBreakdown } from '@/components/analysis/ExpenseBreakdown';
+import { I } from '@/components/icons/I';
 import { getCurrentMonth, getCurrentYear } from '@/lib/utils';
-import Link from 'next/link';
 
 export default function AnalysisPage() {
   const [month, setMonth] = useState(getCurrentMonth());
@@ -15,33 +16,98 @@ export default function AnalysisPage() {
 
   return (
     <Container>
-      <Header title="Analise" subtitle="Orcamento mensal" />
+      <PageHead overline="Orçamento mensal" title="Análise" />
 
-      <div className="mt-2 space-y-3">
+      <div style={{ padding: '0 22px 16px' }}>
         <MonthSelector
           month={month}
           year={year}
-          onChange={(m, y) => { setMonth(m); setYear(y); }}
+          onChange={(m, y) => {
+            setMonth(m);
+            setYear(y);
+          }}
         />
-        <MonthlyBudgetCard month={month} year={year} />
-        <ExpenseBreakdown month={month} year={year} />
+      </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
-          <Link
-            href="/stats"
-            className="bg-surface border border-border rounded-[18px] p-4 text-center transition-all active:scale-[0.98]"
+      <MonthlyBudgetCard month={month} year={year} />
+      <ExpenseBreakdown month={month} year={year} />
+
+      <div
+        style={{
+          padding: '0 22px 12px',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 10,
+        }}
+      >
+        <Link
+          href="/stats"
+          className="card-flat"
+          style={{
+            padding: '14px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            textDecoration: 'none',
+            color: 'inherit',
+          }}
+        >
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 10,
+              background: 'var(--surface)',
+              border: '1px solid var(--hair)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            <div className="font-display text-sm font-semibold">Estatisticas</div>
-            <div className="text-[11px] text-text-3 mt-1">Ver tendencias</div>
-          </Link>
-          <Link
-            href="/goals"
-            className="bg-surface border border-border rounded-[18px] p-4 text-center transition-all active:scale-[0.98]"
+            <I.spark size={16} color="var(--cat-1)" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 500 }}>Estatísticas</div>
+            <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 2 }}>
+              Ver tendências
+            </div>
+          </div>
+          <I.chev size={14} color="var(--ink-mute)" />
+        </Link>
+        <Link
+          href="/goals"
+          className="card-flat"
+          style={{
+            padding: '14px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            textDecoration: 'none',
+            color: 'inherit',
+          }}
+        >
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 10,
+              background: 'var(--surface)',
+              border: '1px solid var(--hair)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            <div className="font-display text-sm font-semibold">Metas</div>
-            <div className="text-[11px] text-text-3 mt-1">Ver objetivos</div>
-          </Link>
-        </div>
+            <I.target size={16} color="var(--accent)" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 500 }}>Metas</div>
+            <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 2 }}>
+              Ver objetivos
+            </div>
+          </div>
+          <I.chev size={14} color="var(--ink-mute)" />
+        </Link>
       </div>
     </Container>
   );

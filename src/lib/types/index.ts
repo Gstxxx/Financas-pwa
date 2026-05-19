@@ -7,6 +7,7 @@ export interface User {
 export interface Entity {
   id: string;
   name: string;
+  hue?: number;
   createdAt: string;
 }
 
@@ -51,6 +52,7 @@ export interface Goal {
   targetValue: number;
   currentValue: number;
   deadline: string;
+  hue?: number;
   createdAt: string;
 }
 

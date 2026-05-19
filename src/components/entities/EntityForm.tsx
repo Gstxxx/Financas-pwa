@@ -1,23 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { HUE_PALETTE, hashHue } from '@/lib/utils';
+import type { Entity } from '@/lib/types';
 
 interface EntityFormProps {
   onClose: () => void;
   onSuccess: () => void;
+  initialEntity?: Entity;
 }
 
-export function EntityForm({ onClose, onSuccess }: EntityFormProps) {
+export function EntityForm({ onClose, onSuccess, initialEntity }: EntityFormProps) {
   const { dispatch } = useFinanceData();
-  const [name, setName] = useState('');
+  const isEdit = !!initialEntity;
+  const [name, setName] = useState(initialEntity?.name ?? '');
+  const [hue, setHue] = useState<number>(
+    initialEntity?.hue ?? hashHue(initialEntity?.name ?? '')
+  );
+
+  const previewHue = useMemo(() => hue || hashHue(name), [hue, name]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    dispatch({ type: 'ADD_ENTITY', payload: { name: name.trim() } });
+    if (isEdit && initialEntity) {
+      dispatch({
+        type: 'UPDATE_ENTITY',
+        payload: { id: initialEntity.id, name: name.trim(), hue },
+      });
+    } else {
+      dispatch({ type: 'ADD_ENTITY', payload: { name: name.trim(), hue } });
+    }
     onSuccess();
   };
 
@@ -32,8 +48,50 @@ export function EntityForm({ onClose, onSuccess }: EntityFormProps) {
         maxLength={40}
         autoComplete="off"
       />
-      <Button type="submit">Salvar categoria</Button>
-      <Button variant="ghost" type="button" onClick={onClose}>
+
+      <div style={{ marginBottom: 16 }}>
+        <label className="field-label">Cor</label>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {HUE_PALETTE.map((h) => {
+            const active = h === hue;
+            return (
+              <button
+                key={h}
+                type="button"
+                onClick={() => setHue(h)}
+                aria-label={`Hue ${h}`}
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 12,
+                  background: `oklch(0.30 0.06 ${h})`,
+                  border: `2px solid ${active ? 'var(--ink)' : `oklch(0.45 0.08 ${h} / 0.6)`}`,
+                  color: `oklch(0.85 0.10 ${h})`,
+                  fontFamily: 'var(--f-display)',
+                  fontStyle: 'italic',
+                  fontSize: 16,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'transform 0.12s ease',
+                  transform: active ? 'scale(1.06)' : 'scale(1)',
+                }}
+              >
+                {(name[0] || '·').toUpperCase()}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 8 }}>
+          Selecionado: hue {previewHue}°
+        </div>
+      </div>
+
+      <Button type="submit" variant="accent">
+        {isEdit ? 'Salvar alterações' : 'Salvar categoria'}
+      </Button>
+      <Button variant="ghost" type="button" onClick={onClose} className="mt-2">
         Cancelar
       </Button>
     </form>

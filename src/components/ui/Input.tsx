@@ -2,65 +2,52 @@ import { cn } from '@/lib/utils';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
+  hint?: string;
+  numeric?: boolean;
 }
 
-export function Input({ label, className, id, ...props }: InputProps) {
+export function Input({ label, hint, numeric, className, id, ...props }: InputProps) {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
   return (
-    <div className="mb-3.5">
+    <div style={{ marginBottom: 16 }}>
       {label && (
-        <label
-          htmlFor={inputId}
-          className="block text-[11px] text-text-2 mb-1.5 tracking-widest uppercase font-medium"
-        >
+        <label htmlFor={inputId} className="field-label">
           {label}
         </label>
       )}
-      <input
-        id={inputId}
-        className={cn(
-          'w-full bg-bg border border-border-strong rounded-sm px-3.5 py-3 text-base text-text font-sans',
-          'transition-colors focus:outline-none focus:border-accent appearance-none',
-          className
-        )}
-        {...props}
-      />
+      <input id={inputId} className={cn('input', numeric && 'num', className)} {...props} />
+      {hint && (
+        <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 6 }}>{hint}</div>
+      )}
     </div>
   );
 }
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
+  hint?: string;
   options: { value: string; label: string }[];
 }
 
-export function Select({ label, options, className, id, ...props }: SelectProps) {
+export function Select({ label, hint, options, className, id, ...props }: SelectProps) {
   const selectId = id || label?.toLowerCase().replace(/\s+/g, '-');
   return (
-    <div className="mb-3.5">
+    <div style={{ marginBottom: 16 }}>
       {label && (
-        <label
-          htmlFor={selectId}
-          className="block text-[11px] text-text-2 mb-1.5 tracking-widest uppercase font-medium"
-        >
+        <label htmlFor={selectId} className="field-label">
           {label}
         </label>
       )}
-      <select
-        id={selectId}
-        className={cn(
-          'w-full bg-bg border border-border-strong rounded-sm px-3.5 py-3 text-base text-text font-sans',
-          'transition-colors focus:outline-none focus:border-accent appearance-none',
-          className
-        )}
-        {...props}
-      >
+      <select id={selectId} className={cn('input', className)} {...props}>
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
           </option>
         ))}
       </select>
+      {hint && (
+        <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 6 }}>{hint}</div>
+      )}
     </div>
   );
 }

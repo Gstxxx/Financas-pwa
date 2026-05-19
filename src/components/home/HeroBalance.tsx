@@ -1,18 +1,25 @@
 'use client';
 
-import { cn, fmtBRL, fmtBRLParts } from '@/lib/utils';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
+import { Money } from '@/components/ui/Money';
+import { Sparkline } from '@/components/charts/Sparkline';
+import { fmtBRL } from '@/lib/utils';
 
 export function HeroBalance() {
-  const { isHydrated, getTotalIncome, getTotalExpenses, getPaidExpenses, getBalance } = useFinanceData();
+  const {
+    isHydrated,
+    getTotalIncome,
+    getTotalExpenses,
+    getPaidExpenses,
+    getBalance,
+    getRecentBalances,
+  } = useFinanceData();
 
   if (!isHydrated) {
     return (
-      <section className="hero-gradient border border-border rounded-lg p-6 mt-3.5 relative overflow-hidden animate-pulse">
-        <div className="h-3 bg-white/5 rounded w-24 mb-4" />
-        <div className="h-10 bg-white/5 rounded w-48 mb-4" />
-        <div className="h-3 bg-white/5 rounded w-36" />
-      </section>
+      <div style={{ padding: '0 22px' }}>
+        <div className="card" style={{ padding: '22px 24px 24px', minHeight: 168 }} />
+      </div>
     );
   }
 
@@ -21,39 +28,142 @@ export function HeroBalance() {
   const paidExpenses = getPaidExpenses();
   const pendingExpenses = Math.max(totalExpenses - paidExpenses, 0);
   const projected = getTotalIncome() - totalExpenses;
-  const { sign, integer, cents } = fmtBRLParts(balance);
+  const recent = getRecentBalances(5);
+  const negative = balance < 0;
 
   return (
-    <section className="hero-gradient border border-border rounded-lg p-6 pt-6 mt-3.5 relative overflow-hidden animate-heroFade">
-      <div className="hero-glow absolute inset-0 pointer-events-none" />
-      <div className="text-[11px] tracking-[0.14em] uppercase text-text-2 font-medium relative">
-        Saldo do ciclo
-      </div>
+    <div style={{ padding: '0 22px' }} className="animate-heroFade">
       <div
-        className={cn(
-          'font-display text-[40px] font-semibold tracking-tighter mt-2 flex items-baseline gap-1 relative leading-none tabular-nums',
-          balance < 0 && 'text-expense'
-        )}
+        className="card"
+        style={{ padding: '22px 24px 24px', position: 'relative', overflow: 'hidden' }}
       >
-        <span className="text-lg text-text-2 font-medium mr-1">R$</span>
-        {sign}{integer}
-        <span className="text-[22px] text-text-2">,{cents}</span>
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            right: -30,
+            top: -50,
+            width: 220,
+            height: 220,
+            borderRadius: '50%',
+            background:
+              'radial-gradient(circle, color-mix(in oklch, var(--accent) 14%, transparent), transparent 70%)',
+            pointerEvents: 'none',
+          }}
+        />
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: 16,
+            position: 'relative',
+          }}
+        >
+          <div className="t-overline">Saldo do ciclo</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="live-dot" />
+            <span
+              style={{
+                fontSize: 10,
+                letterSpacing: '0.16em',
+                textTransform: 'uppercase',
+                color: 'var(--ink-mute)',
+              }}
+            >
+              Ao vivo
+            </span>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+            gap: 12,
+            position: 'relative',
+          }}
+        >
+          <div style={{ color: negative ? 'var(--neg)' : 'var(--ink)' }}>
+            <Money value={balance} size="xl" />
+          </div>
+          {recent.length > 1 && (
+            <div style={{ flexShrink: 0, opacity: 0.9 }}>
+              <Sparkline
+                values={recent}
+                width={92}
+                height={36}
+                color={negative ? 'var(--neg)' : 'var(--accent)'}
+              />
+              <div
+                style={{
+                  fontSize: 9.5,
+                  color: 'var(--ink-faint)',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  textAlign: 'right',
+                  marginTop: 2,
+                  fontFamily: 'var(--f-mono)',
+                }}
+              >
+                {recent.length} ciclos
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div
+          style={{
+            marginTop: 18,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            position: 'relative',
+          }}
+        >
+          <span
+            style={{
+              width: 4,
+              height: 4,
+              borderRadius: 99,
+              background: pendingExpenses > 0 ? 'var(--neg)' : 'var(--accent)',
+            }}
+          />
+          <span style={{ fontSize: 13, color: 'var(--ink-mid)' }}>
+            {pendingExpenses > 0 ? (
+              <>
+                Faltam{' '}
+                <span style={{ fontFamily: 'var(--f-mono)', color: 'var(--ink)' }}>
+                  {fmtBRL(pendingExpenses)}
+                </span>{' '}
+                a pagar este mês
+              </>
+            ) : (
+              'Tudo pago este mês'
+            )}
+          </span>
+        </div>
+        <div
+          style={{
+            marginTop: 6,
+            fontSize: 12,
+            color: 'var(--ink-mute)',
+            position: 'relative',
+          }}
+        >
+          Projetado para fim do ciclo ·{' '}
+          <span
+            style={{
+              fontFamily: 'var(--f-mono)',
+              color: projected < 0 ? 'var(--neg)' : 'var(--ink-mid)',
+            }}
+          >
+            {projected < 0 ? '−' : '+'}
+            {fmtBRL(Math.abs(projected))}
+          </span>
+        </div>
       </div>
-      <div className="flex items-center gap-2 mt-3.5 text-[13px] text-text-2 relative">
-        <span className={cn('w-1.5 h-1.5 rounded-full', projected >= 0 ? 'bg-income' : 'bg-expense')} />
-        <span>
-          {pendingExpenses > 0
-            ? `Faltam ${fmtBRL(pendingExpenses)} a pagar este mes`
-            : `Tudo pago este mes`}
-        </span>
-      </div>
-      <div className="flex items-center gap-2 mt-1.5 text-[12px] text-text-3 relative tabular-nums">
-        <span>
-          {projected >= 0
-            ? `Projetado: +${fmtBRL(projected)}`
-            : `Projetado: −${fmtBRL(Math.abs(projected))}`}
-        </span>
-      </div>
-    </section>
+    </div>
   );
 }

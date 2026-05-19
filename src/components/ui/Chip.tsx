@@ -1,3 +1,5 @@
+'use client';
+
 import { cn } from '@/lib/utils';
 
 interface ChipProps {
@@ -7,21 +9,25 @@ interface ChipProps {
   onClick?: () => void;
 }
 
+/** Standalone chip — for inline filters, prefer Seg. */
 export function Chip({ label, count, active, onClick }: ChipProps) {
   return (
     <button
-      className={cn(
-        'flex-shrink-0 px-3.5 py-2 rounded-full border text-[13px] font-medium cursor-pointer transition-all whitespace-nowrap',
-        'inline-flex items-center gap-1.5',
-        active
-          ? 'bg-text text-bg border-text'
-          : 'bg-surface border-border text-text-2'
-      )}
+      type="button"
+      className={cn('btn', active ? 'btn-primary' : 'btn-ghost')}
+      style={{ height: 36, padding: '0 16px', fontSize: 12.5, fontWeight: 500 }}
       onClick={onClick}
     >
       {label}
       {count !== undefined && (
-        <span className={cn('text-[11px] tabular-nums', active ? 'opacity-60' : 'opacity-70')}>
+        <span
+          style={{
+            fontFamily: 'var(--f-mono)',
+            fontSize: 10.5,
+            opacity: active ? 0.75 : 0.55,
+            marginLeft: 4,
+          }}
+        >
           {count}
         </span>
       )}

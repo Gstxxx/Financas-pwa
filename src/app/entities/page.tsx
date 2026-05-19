@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Container } from '@/components/layout/Container';
-import { Header } from '@/components/layout/Header';
+import { PageHead } from '@/components/ui/PageHead';
 import { AdaptiveFab } from '@/components/layout/AdaptiveFab';
 import { EntityList } from '@/components/entities/EntityList';
 import { EntityForm } from '@/components/entities/EntityForm';
@@ -18,13 +18,11 @@ export default function EntitiesPage() {
   return (
     <>
       <Container>
-        <Header
+        <PageHead
+          overline={`${entities.length} ${entities.length === 1 ? 'categoria' : 'categorias'}`}
           title="Categorias"
-          subtitle={`${entities.length} ${entities.length === 1 ? 'categoria' : 'categorias'}`}
         />
-        <div className="mt-2">
-          <EntityList />
-        </div>
+        <EntityList />
       </Container>
 
       <AdaptiveFab onAction={() => setShowForm(true)} />

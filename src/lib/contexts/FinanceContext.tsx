@@ -1,11 +1,16 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { FinanceState, FinanceAction, User, Debt, Installment, Entity, Income } from '@/lib/types';
+import { FinanceState, FinanceAction, User, Debt, Installment, Entity, Income, Goal } from '@/lib/types';
 import { Storage, STORAGE_KEYS } from '@/lib/storage';
-import { generateId } from '@/lib/utils';
-import { generateInstallments } from '@/lib/services/installment';
+import { generateId, hashHue } from '@/lib/utils';
+import { generateInstallments, isRecurringActiveForMonth } from '@/lib/services/installment';
 import { migrateLegacyData } from '@/lib/services/migration';
+
+function ensureHue<T extends { name: string; hue?: number }>(item: T): T {
+  if (item.hue !== undefined && item.hue !== null) return item;
+  return { ...item, hue: hashHue(item.name) };
+}
 
 type LegacyDebt = Debt & { entityId?: string; entityName?: string };
 
@@ -51,14 +56,14 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
     case 'SET_USER':
       return { ...state, user: { ...state.user, ...action.payload } };
 
-    case 'ADD_ENTITY':
-      return {
-        ...state,
-        entities: [
-          ...state.entities,
-          { ...action.payload, id: generateId(), createdAt: new Date().toISOString() },
-        ],
+    case 'ADD_ENTITY': {
+      const entity: Entity = {
+        ...action.payload,
+        id: generateId(),
+        createdAt: new Date().toISOString(),
       };
+      return { ...state, entities: [...state.entities, ensureHue(entity)] };
+    }
 
     case 'UPDATE_ENTITY': {
       const { id, ...updates } = action.payload;
@@ -211,14 +216,14 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
         ),
       };
 
-    case 'ADD_GOAL':
-      return {
-        ...state,
-        goals: [
-          ...state.goals,
-          { ...action.payload, id: generateId(), createdAt: new Date().toISOString() },
-        ],
+    case 'ADD_GOAL': {
+      const goal: Goal = {
+        ...action.payload,
+        id: generateId(),
+        createdAt: new Date().toISOString(),
       };
+      return { ...state, goals: [...state.goals, ensureHue(goal)] };
+    }
 
     case 'UPDATE_GOAL': {
       const { id, ...updates } = action.payload;
@@ -283,13 +288,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     // Try migration first
     const migrated = migrateLegacyData();
     if (migrated) {
+      const migratedEntities = migrated.entities.map(ensureHue);
       const normalizedDebts = migrated.debts.map((d) =>
-        normalizeDebt(d as LegacyDebt, migrated.entities)
+        normalizeDebt(d as LegacyDebt, migratedEntities)
       );
       dispatch({
         type: 'HYDRATE',
         payload: {
           ...migrated,
+          entities: migratedEntities,
           debts: normalizedDebts,
           budgets: [],
           goals: [],
@@ -301,12 +308,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
     // Load from storage
     const user = Storage.get<User>(STORAGE_KEYS.USER) || DEFAULT_USER;
-    const entities = (Storage.get<Entity[]>(STORAGE_KEYS.ENTITIES) || []);
+    const entities = (Storage.get<Entity[]>(STORAGE_KEYS.ENTITIES) || []).map(ensureHue);
     const rawDebts = (Storage.get<LegacyDebt[]>(STORAGE_KEYS.DEBTS) || []);
     const debts = rawDebts.map((d) => normalizeDebt(d, entities));
-    const installments = Storage.get(STORAGE_KEYS.INSTALLMENTS) || [];
+    const installments = Storage.get<Installment[]>(STORAGE_KEYS.INSTALLMENTS) || [];
     const budgets = Storage.get(STORAGE_KEYS.BUDGETS) || [];
-    const goals = Storage.get(STORAGE_KEYS.GOALS) || [];
+    const goals = ((Storage.get<Goal[]>(STORAGE_KEYS.GOALS) || []) as Goal[]).map(ensureHue);
     const incomes = (Storage.get<Income[]>(STORAGE_KEYS.INCOMES) || []).map((i) =>
       i.direction ? i : { ...i, direction: 'entrada' as const }
     );
@@ -442,6 +449,144 @@ export function useFinanceData() {
     return getTotalIncome() - getPaidExpenses() - getPixOutForMonth(month, year);
   }, [getTotalIncome, getPaidExpenses, getPixOutForMonth]);
 
+  // Saldo "ao fim do ciclo" de um mês específico: receita do mês − todas
+  // as despesas (pagas e a pagar) − PIX. Útil para sparkline histórico.
+  const getProjectedBalanceForMonth = useCallback(
+    (month: number, year: number) => {
+      const income = state.user.salary + getExtraIncomeForMonth(month, year);
+      let expenses = getPixOutForMonth(month, year);
+      state.debts.forEach((debt) => {
+        if (debt.isRecurring) {
+          if (isRecurringActiveForMonth(debt, month, year)) {
+            expenses += debt.installmentValue;
+          }
+        } else {
+          const monthInsts = state.installments.filter((i) => {
+            if (i.debtId !== debt.id) return false;
+            const [iy, im] = i.dueDate.split('-').map(Number);
+            return im === month && iy === year;
+          });
+          expenses += monthInsts.length * debt.installmentValue;
+        }
+      });
+      return income - expenses;
+    },
+    [state.user.salary, state.debts, state.installments, getPixOutForMonth, getExtraIncomeForMonth]
+  );
+
+  const getRecentBalances = useCallback(
+    (count = 5) => {
+      const out: number[] = [];
+      const now = new Date();
+      for (let i = count - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        out.push(getProjectedBalanceForMonth(d.getMonth() + 1, d.getFullYear()));
+      }
+      return out;
+    },
+    [getProjectedBalanceForMonth]
+  );
+
+  const getMonthlyExpenses = useCallback(
+    (year: number): number[] => {
+      const out = Array(12).fill(0);
+      for (let m = 1; m <= 12; m++) {
+        let total = getPixOutForMonth(m, year);
+        state.debts.forEach((debt) => {
+          if (debt.isRecurring) {
+            if (isRecurringActiveForMonth(debt, m, year)) total += debt.installmentValue;
+          } else {
+            const monthInsts = state.installments.filter((i) => {
+              if (i.debtId !== debt.id) return false;
+              const [iy, im] = i.dueDate.split('-').map(Number);
+              return im === m && iy === year;
+            });
+            total += monthInsts.length * debt.installmentValue;
+          }
+        });
+        out[m - 1] = total;
+      }
+      return out;
+    },
+    [state.debts, state.installments, getPixOutForMonth]
+  );
+
+  const getDueByDay = useCallback(
+    (month: number, year: number): Record<number, number> => {
+      const map: Record<number, number> = {};
+      state.debts.forEach((debt) => {
+        if (debt.isRecurring) {
+          if (isRecurringActiveForMonth(debt, month, year)) {
+            map[debt.dueDay] = (map[debt.dueDay] || 0) + 1;
+          }
+        } else {
+          const has = state.installments.some((i) => {
+            if (i.debtId !== debt.id) return false;
+            const [iy, im] = i.dueDate.split('-').map(Number);
+            return iy === year && im === month;
+          });
+          if (has) {
+            map[debt.dueDay] = (map[debt.dueDay] || 0) + 1;
+          }
+        }
+      });
+      return map;
+    },
+    [state.debts, state.installments]
+  );
+
+  const getBreakdown = useCallback(
+    (month: number, year: number) => {
+      const totals: Record<string, number> = {};
+      state.debts.forEach((debt) => {
+        let monthlyValue = 0;
+        if (debt.isRecurring) {
+          if (isRecurringActiveForMonth(debt, month, year)) {
+            monthlyValue = debt.installmentValue;
+          }
+        } else {
+          const monthInsts = state.installments.filter((i) => {
+            if (i.debtId !== debt.id) return false;
+            const [iy, im] = i.dueDate.split('-').map(Number);
+            return im === month && iy === year;
+          });
+          monthlyValue = monthInsts.length * debt.installmentValue;
+        }
+        if (!monthlyValue || debt.entityIds.length === 0) return;
+        const share = monthlyValue / debt.entityIds.length;
+        debt.entityIds.forEach((eid) => {
+          totals[eid] = (totals[eid] || 0) + share;
+        });
+      });
+      const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0) || 1;
+      const rows = Object.entries(totals)
+        .map(([entityId, value]) => {
+          const ent = state.entities.find((e) => e.id === entityId);
+          return {
+            entityId,
+            name: ent?.name || 'Outros',
+            hue: ent?.hue ?? hashHue(ent?.name || 'Outros'),
+            value,
+            pct: (value / grandTotal) * 100,
+          };
+        })
+        .sort((a, b) => b.value - a.value);
+      return rows;
+    },
+    [state.debts, state.installments, state.entities]
+  );
+
+  const getFixos = useCallback(
+    (month: number, year: number) => {
+      const fixos = state.debts.filter(
+        (d) => d.isRecurring && isRecurringActiveForMonth(d, month, year)
+      );
+      const value = fixos.reduce((s, d) => s + d.installmentValue, 0);
+      return { value, count: fixos.length };
+    },
+    [state.debts]
+  );
+
   return {
     ...state,
     dispatch,
@@ -451,5 +596,11 @@ export function useFinanceData() {
     getTotalExpenses,
     getPaidExpenses,
     getBalance,
+    getProjectedBalanceForMonth,
+    getRecentBalances,
+    getMonthlyExpenses,
+    getDueByDay,
+    getBreakdown,
+    getFixos,
   };
 }

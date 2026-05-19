@@ -1,8 +1,8 @@
 'use client';
 
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
-import { fmtBRL, cn } from '@/lib/utils';
-import { ProgressBar } from '@/components/ui/ProgressBar';
+import { Ring } from '@/components/charts/Ring';
+import { NumMono } from '@/components/ui/NumMono';
 
 export function SavingsRate() {
   const { getTotalIncome, getTotalExpenses } = useFinanceData();
@@ -10,32 +10,65 @@ export function SavingsRate() {
   const expenses = getTotalExpenses();
   const savings = income - expenses;
   const rate = income > 0 ? (savings / income) * 100 : 0;
+  const negative = rate < 0;
+  const color = negative ? 'var(--neg)' : 'var(--accent)';
 
   return (
-    <div className="bg-surface border border-border rounded-[18px] p-5">
-      <div className="text-[11px] tracking-[0.1em] uppercase text-text-3 font-medium mb-1">
-        Taxa de poupanca
-      </div>
-      <div className={cn(
-        'font-display text-3xl font-semibold tabular-nums mt-2',
-        rate >= 20 ? 'text-income' : rate >= 0 ? 'text-warn' : 'text-expense'
-      )}>
-        {rate.toFixed(1)}%
-      </div>
-      <div className="text-sm text-text-3 mt-1">
-        {fmtBRL(savings)} por mes
-      </div>
-      <div className="mt-3">
-        <ProgressBar value={Math.max(0, rate)} />
-      </div>
-      <div className="text-[11px] text-text-3 mt-3">
-        {rate >= 20
-          ? 'Excelente! Acima da meta de 20%.'
-          : rate >= 10
-          ? 'Bom, mas tente chegar a 20%.'
-          : rate >= 0
-          ? 'Tente poupar pelo menos 10% da renda.'
-          : 'Atencao: despesas excedem a receita.'}
+    <div style={{ padding: '0 22px 12px' }}>
+      <div className="card" style={{ padding: '22px' }}>
+        <div className="t-overline" style={{ marginBottom: 14 }}>
+          Taxa de poupança
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+          <Ring value={Math.abs(rate)} max={100} size={84} stroke={9} color={color}>
+            <span style={{ fontSize: 13, color }}>{rate.toFixed(0)}%</span>
+          </Ring>
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                fontFamily: 'var(--f-display)',
+                fontSize: 36,
+                fontStyle: 'italic',
+                color,
+                letterSpacing: '-0.02em',
+                lineHeight: 1,
+              }}
+            >
+              {rate.toFixed(1)}%
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--ink-mute)',
+                marginTop: 8,
+              }}
+            >
+              <NumMono
+                value={Math.abs(savings)}
+                sign={negative ? 'neg' : 'pos'}
+                size={12}
+                color={color}
+              />{' '}
+              por mês
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--ink-faint)',
+                marginTop: 10,
+                lineHeight: 1.5,
+              }}
+            >
+              {negative
+                ? 'Atenção: despesas excedem a receita este mês.'
+                : rate >= 20
+                ? 'Excelente! Acima da meta de 20%.'
+                : rate >= 10
+                ? 'Bom, mas tente chegar a 20%.'
+                : 'Tente poupar pelo menos 10% da renda.'}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

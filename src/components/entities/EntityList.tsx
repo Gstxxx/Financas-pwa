@@ -1,35 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { cn, fmtDate } from '@/lib/utils';
+import { EntityForm } from '@/components/entities/EntityForm';
+import { NumMono } from '@/components/ui/NumMono';
+import { getCurrentMonth, getCurrentYear, getEntityHue } from '@/lib/utils';
 import type { Entity } from '@/lib/types';
 
 export function EntityList() {
-  const { entities, debts, dispatch } = useFinanceData();
+  const { entities, debts, dispatch, getBreakdown } = useFinanceData();
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
-  const [editName, setEditName] = useState('');
+
+  const month = getCurrentMonth();
+  const year = getCurrentYear();
+  const breakdown = useMemo(() => getBreakdown(month, year), [getBreakdown, month, year]);
+  const totalOut = breakdown.reduce((s, b) => s + b.value, 0) || 1;
+  const valueByEntity = new Map(breakdown.map((b) => [b.entityId, b]));
 
   if (entities.length === 0) {
-    return <EmptyState message="Nenhuma categoria cadastrada. Crie categorias para organizar suas contas!" />;
+    return (
+      <div style={{ padding: '0 22px' }}>
+        <EmptyState message="Nenhuma categoria cadastrada. Crie categorias para organizar suas contas!" />
+      </div>
+    );
   }
 
   const getDebtCount = (entityId: string) =>
     debts.filter((d) => d.entityIds.includes(entityId)).length;
-
-  const handleEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedEntity || !editName.trim()) return;
-    dispatch({
-      type: 'UPDATE_ENTITY',
-      payload: { id: selectedEntity.id, name: editName.trim() },
-    });
-    setSelectedEntity(null);
-  };
 
   const handleDelete = () => {
     if (!selectedEntity) return;
@@ -41,35 +41,115 @@ export function EntityList() {
 
   return (
     <>
-      <div className="flex flex-col gap-2.5">
-        {entities.map((entity, idx) => (
-          <div
-            key={entity.id}
-            className={cn(
-              'bg-surface border border-border rounded-[18px] p-4 cursor-pointer',
-              'transition-all active:scale-[0.992] active:bg-surface-2 animate-fadeUp'
-            )}
-            style={{ animationDelay: `${Math.min(idx, 7) * 0.04}s` }}
-            onClick={() => {
-              setSelectedEntity(entity);
-              setEditName(entity.name);
-            }}
-          >
-            <div className="flex justify-between items-center">
-              <div>
-                <div className="font-display text-[17px] font-semibold tracking-tight">
-                  {entity.name}
+      <div style={{ padding: '0 22px 12px' }}>
+        <div className="card" style={{ overflow: 'hidden' }}>
+          {entities.map((entity, idx) => {
+            const hue = getEntityHue(entity);
+            const count = getDebtCount(entity.id);
+            const bd = valueByEntity.get(entity.id);
+            const value = bd?.value ?? 0;
+            const pct = value > 0 ? (value / totalOut) * 100 : 0;
+            return (
+              <div
+                key={entity.id}
+                style={{
+                  padding: '18px 20px',
+                  borderTop: idx === 0 ? 'none' : '1px solid var(--hair-soft)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  cursor: 'pointer',
+                }}
+                onClick={() => setSelectedEntity(entity)}
+              >
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 12,
+                    background: `oklch(0.26 0.05 ${hue})`,
+                    border: `1px solid oklch(0.40 0.08 ${hue} / 0.5)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: 'var(--f-display)',
+                    fontStyle: 'italic',
+                    fontSize: 18,
+                    color: `oklch(0.85 0.10 ${hue})`,
+                    flexShrink: 0,
+                  }}
+                >
+                  {entity.name[0]?.toUpperCase()}
                 </div>
-                <div className="text-xs text-text-3 mt-1">
-                  {getDebtCount(entity.id)} contas · Criado em {fmtDate(entity.createdAt.split('T')[0])}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 16, fontWeight: 500, letterSpacing: '-0.005em' }}>
+                    {entity.name}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: 'var(--ink-mute)',
+                      marginTop: 3,
+                      fontFamily: 'var(--f-mono)',
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {count} {count === 1 ? 'conta' : 'contas'}
+                  </div>
+                  {value > 0 && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        height: 3,
+                        borderRadius: 99,
+                        background: 'var(--surface-2)',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: '100%',
+                          width: `${Math.min(100, pct)}%`,
+                          background: `oklch(0.74 0.10 ${hue})`,
+                          borderRadius: 99,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  {value > 0 ? (
+                    <>
+                      <NumMono value={value} size={14} sign="neg" />
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: 'var(--ink-faint)',
+                          marginTop: 3,
+                          fontFamily: 'var(--f-mono)',
+                          letterSpacing: '0.05em',
+                        }}
+                      >
+                        {pct.toFixed(1)}%
+                      </div>
+                    </>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--ink-faint)',
+                        fontFamily: 'var(--f-mono)',
+                      }}
+                    >
+                      —
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-full bg-accent/15 flex items-center justify-center text-accent text-sm">
-                {getDebtCount(entity.id)}
-              </div>
-            </div>
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </div>
 
       <BottomSheet
@@ -78,22 +158,16 @@ export function EntityList() {
         title="Editar categoria"
       >
         {selectedEntity && (
-          <form onSubmit={handleEdit}>
-            <Input
-              label="Nome"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              required
-              maxLength={40}
+          <>
+            <EntityForm
+              initialEntity={selectedEntity}
+              onClose={() => setSelectedEntity(null)}
+              onSuccess={() => setSelectedEntity(null)}
             />
-            <Button type="submit">Salvar</Button>
-            <Button variant="ghost" type="button" onClick={() => setSelectedEntity(null)}>
-              Cancelar
-            </Button>
-            <Button variant="danger" type="button" onClick={handleDelete}>
+            <Button variant="danger" type="button" onClick={handleDelete} className="mt-2">
               Excluir categoria
             </Button>
-          </form>
+          </>
         )}
       </BottomSheet>
     </>

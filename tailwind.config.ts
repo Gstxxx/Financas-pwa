@@ -8,52 +8,84 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          DEFAULT: '#08080c',
-          soft: '#0e0e14',
+          DEFAULT: 'var(--bg)',
+          elev: 'var(--bg-elev)',
+          // Legacy alias used by older components during migration
+          soft: 'var(--bg-elev)',
         },
         surface: {
-          DEFAULT: '#14141c',
-          2: '#1c1c26',
+          DEFAULT: 'var(--surface)',
+          2: 'var(--surface-2)',
         },
+        hair: {
+          DEFAULT: 'var(--hair)',
+          soft: 'var(--hair-soft)',
+        },
+        // Legacy alias for border-*
         border: {
-          DEFAULT: 'rgba(255,255,255,0.06)',
-          strong: 'rgba(255,255,255,0.12)',
+          DEFAULT: 'var(--hair)',
+          strong: 'var(--hair)',
         },
+        ink: {
+          DEFAULT: 'var(--ink)',
+          mid: 'var(--ink-mid)',
+          mute: 'var(--ink-mute)',
+          faint: 'var(--ink-faint)',
+        },
+        // Legacy alias for text-*
         text: {
-          DEFAULT: '#fafafa',
-          2: '#a1a1aa',
-          3: '#71717a',
+          DEFAULT: 'var(--ink)',
+          2: 'var(--ink-mid)',
+          3: 'var(--ink-mute)',
         },
         accent: {
-          DEFAULT: '#a78bfa',
-          2: '#c084fc',
-        },
-        income: {
-          DEFAULT: '#4ade80',
-          bg: 'rgba(74,222,128,0.12)',
-        },
-        expense: {
-          DEFAULT: '#fb7185',
-          bg: 'rgba(251,113,133,0.12)',
+          DEFAULT: 'var(--accent)',
+          deep: 'var(--accent-deep)',
+          tint: 'var(--accent-tint)',
+          ink: 'var(--accent-ink)',
+          // Legacy alias
+          2: 'var(--accent-deep)',
         },
         warn: {
-          DEFAULT: '#fbbf24',
-          bg: 'rgba(251,191,36,0.12)',
+          DEFAULT: 'var(--warn)',
+          bg: 'color-mix(in oklch, var(--warn) 15%, transparent)',
+        },
+        neg: {
+          DEFAULT: 'var(--neg)',
+          tint: 'var(--neg-tint)',
+        },
+        // Legacy semantic aliases (mapped to new tokens)
+        income: {
+          DEFAULT: 'var(--accent)',
+          bg: 'color-mix(in oklch, var(--accent) 12%, transparent)',
+        },
+        expense: {
+          DEFAULT: 'var(--neg)',
+          bg: 'color-mix(in oklch, var(--neg) 12%, transparent)',
         },
         critical: {
-          DEFAULT: '#ef4444',
-          bg: 'rgba(239,68,68,0.12)',
+          DEFAULT: 'var(--neg)',
+          bg: 'color-mix(in oklch, var(--neg) 12%, transparent)',
+        },
+        cat: {
+          1: 'var(--cat-1)',
+          2: 'var(--cat-2)',
+          3: 'var(--cat-3)',
+          4: 'var(--cat-4)',
+          5: 'var(--cat-5)',
         },
       },
       borderRadius: {
-        DEFAULT: '18px',
-        sm: '12px',
-        lg: '24px',
+        DEFAULT: 'var(--r-lg)',
+        sm: 'var(--r-sm)',
+        md: 'var(--r-md)',
+        lg: 'var(--r-lg)',
+        xl: 'var(--r-xl)',
       },
       fontFamily: {
-        sans: ['var(--font-geist)', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
-        display: ['var(--font-display)', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-geist)', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-geist-sans)', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'Times New Roman', 'serif'],
+        mono: ['var(--font-geist-mono)', 'ui-monospace', 'monospace'],
       },
       keyframes: {
         fadeUp: {

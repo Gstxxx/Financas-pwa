@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Container } from '@/components/layout/Container';
-import { Header } from '@/components/layout/Header';
+import { PageHead } from '@/components/ui/PageHead';
 import { AdaptiveFab } from '@/components/layout/AdaptiveFab';
 import { HeroBalance } from '@/components/home/HeroBalance';
 import { StatsGrid } from '@/components/home/StatsGrid';
@@ -12,16 +12,18 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { DebtForm } from '@/components/debts/DebtForm';
 import { IncomeForm } from '@/components/home/IncomeForm';
 import { useToastContext } from '@/lib/contexts/ToastContext';
+import { fmtMonthYear, getCurrentMonth, getCurrentYear, getGreeting } from '@/lib/utils';
 
 export default function HomePage() {
   const [showAddDebt, setShowAddDebt] = useState(false);
   const [showAddIncome, setShowAddIncome] = useState(false);
   const { toast } = useToastContext();
+  const overline = `${getGreeting()} · ${fmtMonthYear(getCurrentMonth(), getCurrentYear())}`;
 
   return (
     <>
       <Container>
-        <Header />
+        <PageHead overline={overline} title="Suas finanças" />
         <HeroBalance />
         <StatsGrid />
         <QuickActions />
@@ -31,7 +33,7 @@ export default function HomePage() {
       <AdaptiveFab
         onAction={() => setShowAddDebt(true)}
         secondaryAction={{
-          label: 'Lancamento',
+          label: 'Lançamento',
           onClick: () => setShowAddIncome(true),
         }}
       />
@@ -53,13 +55,13 @@ export default function HomePage() {
       <BottomSheet
         isOpen={showAddIncome}
         onClose={() => setShowAddIncome(false)}
-        title="Novo lancamento"
+        title="Novo lançamento"
       >
         <IncomeForm
           onClose={() => setShowAddIncome(false)}
           onSuccess={(direction) => {
             setShowAddIncome(false);
-            toast(direction === 'entrada' ? 'Entrada adicionada!' : 'PIX/saida lancada!');
+            toast(direction === 'entrada' ? 'Entrada adicionada!' : 'PIX/saída lançada!');
           }}
         />
       </BottomSheet>

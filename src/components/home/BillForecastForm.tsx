@@ -4,28 +4,28 @@ import { useState } from 'react';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { cn, fmtBRL, fmtMonthYear, parseMoney } from '@/lib/utils';
+import { fmtBRL, fmtMonthYear, parseMoney } from '@/lib/utils';
 import { forecastBillNextMonth, type BillForecast } from '@/lib/services/budget';
 
 interface BillForecastFormProps {
   onClose: () => void;
 }
 
-const STATUS_COPY: Record<BillForecast['status'], { tone: string; title: string; subtitle: string }> = {
+const STATUS_COPY: Record<BillForecast['status'], { color: string; title: string; subtitle: string }> = {
   ok: {
-    tone: 'bg-income/15 text-income border-income/40',
-    title: 'Cabe no orcamento',
-    subtitle: 'Voce ainda fica com folga depois dessa conta.',
+    color: 'var(--accent)',
+    title: 'Cabe no orçamento',
+    subtitle: 'Você ainda fica com folga depois dessa conta.',
   },
   tight: {
-    tone: 'bg-warn/15 text-warn border-warn/40',
+    color: 'var(--warn)',
     title: 'Vai ficar apertado',
-    subtitle: 'Sobra menos de 10% da receita. De para encaixar, mas com cuidado.',
+    subtitle: 'Sobra menos de 10% da receita. Dá para encaixar, mas com cuidado.',
   },
   over: {
-    tone: 'bg-critical/15 text-critical border-critical/40',
-    title: 'Prejudica o orcamento',
-    subtitle: 'Essa conta estoura o saldo previsto pro proximo mes.',
+    color: 'var(--neg)',
+    title: 'Prejudica o orçamento',
+    subtitle: 'Essa conta estoura o saldo previsto pro próximo mês.',
   },
 };
 
@@ -47,6 +47,7 @@ export function BillForecastForm({ onClose }: BillForecastFormProps) {
         label="Valor da conta (R$)"
         type="text"
         inputMode="decimal"
+        numeric
         value={amount}
         onChange={(e) => {
           setAmount(e.target.value);
@@ -57,36 +58,44 @@ export function BillForecastForm({ onClose }: BillForecastFormProps) {
         autoFocus
       />
 
-      <Button type="submit">Simular impacto</Button>
+      <Button type="submit" variant="accent">
+        Simular impacto
+      </Button>
 
       {forecast && (
-        <div className="mt-4 space-y-3">
-          <div className={cn('rounded-[14px] border p-4', STATUS_COPY[forecast.status].tone)}>
-            <div className="font-display text-[15px] font-semibold tracking-tight">
-              {STATUS_COPY[forecast.status].title}
-            </div>
-            <div className="text-[12px] mt-1 opacity-80">
+        <div style={{ marginTop: 16 }}>
+          <div
+            style={{
+              borderRadius: 14,
+              border: `1px solid color-mix(in oklch, ${STATUS_COPY[forecast.status].color} 45%, transparent)`,
+              background: `color-mix(in oklch, ${STATUS_COPY[forecast.status].color} 12%, transparent)`,
+              padding: 16,
+              color: STATUS_COPY[forecast.status].color,
+            }}
+          >
+            <div className="t-h3">{STATUS_COPY[forecast.status].title}</div>
+            <div style={{ fontSize: 12, marginTop: 4, opacity: 0.85 }}>
               {STATUS_COPY[forecast.status].subtitle}
             </div>
           </div>
 
-          <div className="text-[10.5px] tracking-[0.14em] uppercase text-text-3 font-medium pt-1">
-            Projecao para {fmtMonthYear(forecast.month, forecast.year)}
+          <div className="t-overline" style={{ marginTop: 16, marginBottom: 4 }}>
+            Projeção para {fmtMonthYear(forecast.month, forecast.year)}
           </div>
 
-          <div className="space-y-0">
+          <div style={{ marginTop: 6 }}>
             <Row label="Receita prevista" value={fmtBRL(forecast.income)} />
-            <Row label="Saidas ja agendadas" value={fmtBRL(forecast.expenses)} />
+            <Row label="Saídas já agendadas" value={fmtBRL(forecast.expenses)} />
             <Row
               label="Saldo antes da conta"
               value={fmtBRL(forecast.remainingBefore)}
-              tone={forecast.remainingBefore >= 0 ? 'income' : 'expense'}
+              tone={forecast.remainingBefore >= 0 ? 'accent' : 'neg'}
             />
-            <Row label="Conta hipotetica" value={`− ${fmtBRL(forecast.hypotheticalAmount)}`} />
+            <Row label="Conta hipotética" value={`− ${fmtBRL(forecast.hypotheticalAmount)}`} />
             <Row
-              label="Saldo apos a conta"
+              label="Saldo após a conta"
               value={fmtBRL(forecast.remainingAfter)}
-              tone={forecast.remainingAfter >= 0 ? 'income' : 'expense'}
+              tone={forecast.remainingAfter >= 0 ? 'accent' : 'neg'}
               strong
             />
             <Row label="Margem sobre receita" value={`${forecast.marginPct.toFixed(1)}%`} />
@@ -94,7 +103,7 @@ export function BillForecastForm({ onClose }: BillForecastFormProps) {
         </div>
       )}
 
-      <Button variant="ghost" type="button" onClick={onClose}>
+      <Button variant="ghost" type="button" onClick={onClose} className="mt-2">
         Fechar
       </Button>
     </form>
@@ -109,19 +118,31 @@ function Row({
 }: {
   label: string;
   value: string;
-  tone?: 'income' | 'expense';
+  tone?: 'accent' | 'neg';
   strong?: boolean;
 }) {
+  const color = tone === 'accent' ? 'var(--accent)' : tone === 'neg' ? 'var(--neg)' : 'var(--ink)';
   return (
-    <div className="flex justify-between py-2.5 border-b border-border last:border-b-0 text-sm items-center gap-3">
-      <span className="text-text-3 text-[13px]">{label}</span>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '12px 0',
+        borderBottom: '1px solid var(--hair-soft)',
+        gap: 12,
+      }}
+    >
+      <span style={{ color: 'var(--ink-mute)', fontSize: 13 }}>{label}</span>
       <span
-        className={cn(
-          'tabular-nums text-right',
-          strong ? 'font-display font-semibold text-[15px]' : 'font-medium',
-          tone === 'income' && 'text-income',
-          tone === 'expense' && 'text-expense'
-        )}
+        style={{
+          fontFamily: 'var(--f-mono)',
+          fontFeatureSettings: '"tnum" 1',
+          fontSize: strong ? 16 : 14,
+          fontWeight: strong ? 500 : 400,
+          color,
+          textAlign: 'right',
+        }}
       >
         {value}
       </span>

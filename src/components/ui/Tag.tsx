@@ -1,29 +1,24 @@
-import { cn } from '@/lib/utils';
+import { cn, hashHue } from '@/lib/utils';
 
 interface TagProps {
   name: string;
+  hue?: number;
   className?: string;
 }
 
-const tagClassMap: Record<string, string> = {
-  pai: 'tag-pai',
-  amor: 'tag-amor',
-  fixo: 'tag-fixo',
-  parcelado: 'tag-parcelado',
-  servicos: 'tag-servicos',
-  outros: 'tag-outros',
-};
-
-export function Tag({ name, className }: TagProps) {
+/** Legacy text pill. For category entities, prefer CatPill. */
+export function Tag({ name, hue, className }: TagProps) {
+  const h = hue ?? hashHue(name);
   return (
     <span
-      className={cn(
-        'text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] bg-white/[0.06] text-text-2',
-        'tracking-wide uppercase',
-        tagClassMap[name.toLowerCase()],
-        className
-      )}
+      className={cn('pill', className)}
+      style={{
+        color: `oklch(0.80 0.10 ${h})`,
+        borderColor: `oklch(0.40 0.06 ${h} / 0.6)`,
+        background: `oklch(0.24 0.04 ${h} / 0.4)`,
+      }}
     >
+      <span className="dot" style={{ background: `oklch(0.78 0.12 ${h})` }} />
       {name}
     </span>
   );

@@ -4,7 +4,14 @@ interface ContainerProps {
 
 export function Container({ children }: ContainerProps) {
   return (
-    <div className="max-w-[480px] mx-auto px-5 pt-[max(16px,env(safe-area-inset-top))] pb-32">
+    <div
+      className="mx-auto"
+      style={{
+        maxWidth: 480,
+        paddingTop: 'max(16px, env(safe-area-inset-top))',
+        paddingBottom: 'calc(140px + env(safe-area-inset-bottom, 0px))',
+      }}
+    >
       {children}
     </div>
   );

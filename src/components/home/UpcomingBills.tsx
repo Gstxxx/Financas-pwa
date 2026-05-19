@@ -2,16 +2,29 @@
 
 import { useMemo, useState } from 'react';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
-import { getNextUnpaidInstallment, isRecurringActiveForMonth, getDebtProgress, getRecurringNextDue } from '@/lib/services/installment';
-import { cn, fmtBRL, fmtDate, getInstallmentStatus, getDueDateLabel, getCurrentMonth, getCurrentYear, fmtMonthYear } from '@/lib/utils';
+import {
+  getNextUnpaidInstallment,
+  isRecurringActiveForMonth,
+  getDebtProgress,
+  getRecurringNextDue,
+} from '@/lib/services/installment';
+import {
+  fmtBRL,
+  fmtDate,
+  fmtMonthYear,
+  getCurrentMonth,
+  getCurrentYear,
+  getDueDateLabel,
+  getInstallmentStatus,
+} from '@/lib/utils';
+import type { DebtStatusType } from '@/lib/utils';
 import { StatusPill } from '@/components/ui/StatusPill';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { Chip } from '@/components/ui/Chip';
+import { Seg } from '@/components/ui/Seg';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
+import { AccountRow } from '@/components/ui/AccountRow';
 import type { Debt, Installment } from '@/lib/types';
-import type { DebtStatusType } from '@/lib/utils';
 
 type Filter = 'todas' | 'atrasado' | 'breve' | 'ok';
 
@@ -24,16 +37,15 @@ interface BillItem {
 }
 
 export function UpcomingBills() {
-  const { isHydrated, debts, installments, dispatch } = useFinanceData();
+  const { isHydrated, debts, installments, entities, dispatch } = useFinanceData();
   const [filter, setFilter] = useState<Filter>('todas');
   const [selectedBill, setSelectedBill] = useState<BillItem | null>(null);
 
-  const bills = useMemo((): BillItem[] => {
+  const bills = useMemo<BillItem[]>(() => {
     if (!isHydrated) return [];
     const month = getCurrentMonth();
     const year = getCurrentYear();
     const items: BillItem[] = [];
-
     debts.forEach((debt) => {
       if (debt.isRecurring) {
         if (isRecurringActiveForMonth(debt, month, year)) {
@@ -57,7 +69,6 @@ export function UpcomingBills() {
         }
       }
     });
-
     return items.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   }, [isHydrated, debts, installments]);
 
@@ -66,161 +77,143 @@ export function UpcomingBills() {
     return bills.filter((b) => b.status === filter);
   }, [bills, filter]);
 
-  const counts = useMemo(() => ({
-    todas: bills.length,
-    atrasado: bills.filter((b) => b.status === 'atrasado').length,
-    breve: bills.filter((b) => b.status === 'breve').length,
-    ok: bills.filter((b) => b.status === 'ok' || b.status === 'pago').length,
-  }), [bills]);
+  const counts = useMemo(
+    () => ({
+      todas: bills.length,
+      atrasado: bills.filter((b) => b.status === 'atrasado').length,
+      breve: bills.filter((b) => b.status === 'breve').length,
+      ok: bills.filter((b) => b.status === 'ok' || b.status === 'pago').length,
+    }),
+    [bills]
+  );
 
   if (!isHydrated) {
     return (
-      <div className="space-y-2.5 mt-3.5">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-surface border border-border rounded-[18px] p-4 h-24 animate-pulse" />
-        ))}
+      <div style={{ padding: '0 22px' }}>
+        <div className="card" style={{ minHeight: 180 }} />
       </div>
     );
   }
 
   const handleMarkPaid = (bill: BillItem) => {
     if (bill.installment) {
-      dispatch({ type: 'MARK_PAID', payload: { debtId: bill.debt.id, installmentId: bill.installment.id } });
+      dispatch({
+        type: 'MARK_PAID',
+        payload: { debtId: bill.debt.id, installmentId: bill.installment.id },
+      });
     } else {
-      // Recurring
       dispatch({ type: 'MARK_PAID', payload: { debtId: bill.debt.id, dueDate: bill.dueDate } });
     }
     setSelectedBill(null);
   };
 
+  const month = getCurrentMonth();
+  const year = getCurrentYear();
+  const curMonthBills: BillItem[] = [];
+  const groupedFuture = new Map<string, BillItem[]>();
+  filteredBills.forEach((bill) => {
+    const [by, bm] = bill.dueDate.split('-').map(Number);
+    if (by < year || (by === year && bm <= month)) {
+      curMonthBills.push(bill);
+    } else {
+      const key = `${by}-${bm}`;
+      if (!groupedFuture.has(key)) groupedFuture.set(key, []);
+      groupedFuture.get(key)!.push(bill);
+    }
+  });
+
+  const segOptions: { value: Filter; label: string; count: number }[] = [
+    { value: 'todas', label: 'Todas', count: counts.todas },
+    { value: 'atrasado', label: 'Atrasado', count: counts.atrasado },
+    { value: 'breve', label: 'Vence em breve', count: counts.breve },
+    { value: 'ok', label: 'Em dia', count: counts.ok },
+  ];
+
   return (
     <>
-      <div className="flex justify-between items-baseline mt-6 mb-2.5">
-        <h2 className="font-display text-[19px] font-semibold tracking-tight">Contas</h2>
-        <span className="text-xs text-text-3 tabular-nums">
+      <div className="section-label">
+        <h2 className="t-h2">Contas</h2>
+        <div className="line" />
+        <span
+          style={{
+            fontFamily: 'var(--f-mono)',
+            fontSize: 11,
+            color: 'var(--ink-mute)',
+            letterSpacing: '0.04em',
+          }}
+        >
           {filteredBills.length}/{bills.length}
         </span>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto hide-scrollbar mx-[-20px] px-5 pb-1">
-        {([
-          ['todas', 'Todas'],
-          ['atrasado', 'Atrasado'],
-          ['breve', 'Vence em breve'],
-          ['ok', 'Em dia'],
-        ] as [Filter, string][]).map(([key, label]) => (
-          <Chip
-            key={key}
-            label={label}
-            count={counts[key]}
-            active={filter === key}
-            onClick={() => setFilter(key)}
-          />
-        ))}
+      <div style={{ padding: '0 22px 12px', overflowX: 'auto' }} className="hide-scrollbar">
+        <Seg<Filter> value={filter} onChange={setFilter} options={segOptions} />
       </div>
 
-      <div className="flex flex-col gap-2.5 mt-3.5">
-        {filteredBills.length === 0 ? (
+      {filteredBills.length === 0 ? (
+        <div style={{ padding: '0 22px 12px' }}>
           <EmptyState message="Nenhuma conta nesta categoria." />
-        ) : (
-          filteredBills.map((bill, idx) => {
-            const [by, bm] = bill.dueDate.split('-').map(Number);
-            const curMonth = getCurrentMonth();
-            const curYear = getCurrentYear();
-            const billKey = by * 100 + bm;
-            const curKey = curYear * 100 + curMonth;
-            const isFuture = billKey > curKey;
-            const prev = filteredBills[idx - 1];
-            let showDivider = false;
-            let dividerLabel = '';
-            if (isFuture) {
-              if (!prev) {
-                showDivider = true;
-                dividerLabel = fmtMonthYear(bm, by);
-              } else {
-                const [py, pm] = prev.dueDate.split('-').map(Number);
-                if (py !== by || pm !== bm) {
-                  showDivider = true;
-                  dividerLabel = fmtMonthYear(bm, by);
-                }
-              }
-            }
+        </div>
+      ) : (
+        <>
+          {curMonthBills.length > 0 && (
+            <div style={{ padding: '0 22px 12px' }}>
+              <div className="card" style={{ overflow: 'hidden' }}>
+                {curMonthBills.map((bill) => (
+                  <AccountRow
+                    key={`${bill.debt.id}-${bill.dueDate}`}
+                    debt={bill.debt}
+                    dueDate={bill.dueDate}
+                    status={bill.status}
+                    installmentInfo={
+                      !bill.debt.isRecurring && bill.installment
+                        ? {
+                            current: bill.installment.installmentNumber,
+                            total: bill.debt.numberOfInstallments,
+                          }
+                        : undefined
+                    }
+                    entities={entities}
+                    onClick={() => setSelectedBill(bill)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          {Array.from(groupedFuture.entries()).map(([key, items]) => {
+            const [yStr, mStr] = key.split('-');
+            const y = Number(yStr);
+            const m = Number(mStr);
             return (
-            <div key={`group-${bill.debt.id}-${bill.dueDate}`} className="contents">
-            {showDivider && (
-              <div className="flex items-center gap-3 my-1.5 select-none">
-                <div className="h-px flex-1 bg-border" />
-                <span className="text-[10.5px] font-medium tracking-[0.16em] uppercase text-text-3">
-                  {dividerLabel}
-                </span>
-                <div className="h-px flex-1 bg-border" />
-              </div>
-            )}
-            <div
-              key={`${bill.debt.id}-${bill.dueDate}`}
-              className={cn(
-                'bg-surface border border-border rounded-[18px] p-4 flex flex-col gap-2.5 cursor-pointer transition-all relative overflow-hidden',
-                'active:scale-[0.992] active:bg-surface-2',
-                'animate-fadeUp',
-                bill.status === 'atrasado' && 'txn-atrasado',
-                bill.status === 'breve' && 'txn-breve',
-                isFuture && 'opacity-75'
-              )}
-              style={{ animationDelay: `${Math.min(idx, 7) * 0.04}s` }}
-              onClick={() => setSelectedBill(bill)}
-            >
-              {bill.status === 'atrasado' && (
-                <div className="absolute left-0 top-3.5 bottom-3.5 w-[3px] bg-critical rounded-r-sm" />
-              )}
-              <div className="flex justify-between items-start gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="font-display text-[17px] font-semibold tracking-tight capitalize break-words">
-                    {bill.debt.accountName}
-                  </div>
-                  <div className="flex gap-[5px] flex-wrap mt-1.5">
-                    {bill.debt.entityNames.map((name) => (
-                      <span
-                        key={name}
-                        className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] bg-white/[0.06] text-text-2 tracking-wide uppercase"
-                      >
-                        {name}
-                      </span>
+              <div key={key}>
+                <div className="month-marker">{fmtMonthYear(m, y)}</div>
+                <div style={{ padding: '0 22px 12px' }}>
+                  <div className="card" style={{ overflow: 'hidden', opacity: 0.85 }}>
+                    {items.map((bill) => (
+                      <AccountRow
+                        key={`${bill.debt.id}-${bill.dueDate}`}
+                        debt={bill.debt}
+                        dueDate={bill.dueDate}
+                        status={bill.status}
+                        installmentInfo={
+                          !bill.debt.isRecurring && bill.installment
+                            ? {
+                                current: bill.installment.installmentNumber,
+                                total: bill.debt.numberOfInstallments,
+                              }
+                            : undefined
+                        }
+                        entities={entities}
+                        onClick={() => setSelectedBill(bill)}
+                      />
                     ))}
-                    {bill.debt.isRecurring ? (
-                      <span className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] tag-fixo tracking-wide uppercase">
-                        Fixo
-                      </span>
-                    ) : (
-                      <span className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] tag-parcelado tracking-wide uppercase">
-                        Parcelado
-                      </span>
-                    )}
                   </div>
                 </div>
-                <div className="font-display text-[17px] font-semibold tabular-nums tracking-tight whitespace-nowrap">
-                  − {fmtBRL(bill.debt.installmentValue).replace('R$', 'R$ ')}
-                </div>
               </div>
-
-              {bill.progress !== undefined && bill.progress > 0 && (
-                <ProgressBar
-                  value={bill.progress}
-                  label={`${bill.progress.toFixed(1)}%`}
-                />
-              )}
-
-              <div className="flex justify-between items-center text-xs text-text-3 flex-wrap gap-2">
-                <span className="flex items-center gap-[5px] text-[11.5px]">
-                  {fmtDate(bill.dueDate)} · {getDueDateLabel(bill.dueDate)}
-                </span>
-                <StatusPill status={bill.status} />
-              </div>
-            </div>
-            </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </>
+      )}
 
       <BottomSheet
         isOpen={!!selectedBill}
@@ -229,42 +222,30 @@ export function UpcomingBills() {
       >
         {selectedBill && (
           <>
-            {selectedBill.debt.entityNames.length > 0 && (
-              <div className="flex gap-[5px] flex-wrap mb-3.5">
-                {selectedBill.debt.entityNames.map((name) => (
-                  <span
-                    key={name}
-                    className="text-[10.5px] font-medium px-2 py-[3px] rounded-[6px] bg-white/[0.06] text-text-2 tracking-wide uppercase"
-                  >
-                    {name}
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="space-y-0">
-              <DetailRow label="Direcao" value="&#9660; Saida" />
+            <div style={{ marginBottom: 14 }}>
               <DetailRow label="Valor" value={fmtBRL(selectedBill.debt.installmentValue)} />
               <DetailRow label="Vencimento" value={fmtDate(selectedBill.dueDate)} />
+              <DetailRow label="Quando" value={getDueDateLabel(selectedBill.dueDate)} />
               {!selectedBill.debt.isRecurring && (
                 <DetailRow
-                  label="Parcelas"
+                  label="Parcela"
                   value={`${selectedBill.installment?.installmentNumber ?? '—'}/${selectedBill.debt.numberOfInstallments}`}
                 />
               )}
               {selectedBill.progress !== undefined && (
-                <DetailRow label="Conclusao" value={`${selectedBill.progress.toFixed(1)}%`} />
+                <DetailRow label="Progresso" value={`${selectedBill.progress.toFixed(1)}%`} />
               )}
-              <DetailRow
-                label="Status"
-                value={<StatusPill status={selectedBill.status} />}
-              />
+              {selectedBill.debt.entityNames.length > 0 && (
+                <DetailRow label="Categorias" value={selectedBill.debt.entityNames.join(', ')} />
+              )}
+              <DetailRow label="Status" value={<StatusPill status={selectedBill.status} />} />
             </div>
             {selectedBill.status !== 'pago' && (
-              <Button variant="primary" onClick={() => handleMarkPaid(selectedBill)}>
+              <Button variant="accent" onClick={() => handleMarkPaid(selectedBill)}>
                 Marcar como pago
               </Button>
             )}
-            <Button variant="ghost" onClick={() => setSelectedBill(null)}>
+            <Button variant="ghost" onClick={() => setSelectedBill(null)} className="mt-2">
               Fechar
             </Button>
           </>
@@ -276,9 +257,28 @@ export function UpcomingBills() {
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex justify-between py-2.5 border-b border-border last:border-b-0 text-sm items-center gap-3">
-      <span className="text-text-3 text-[13px]">{label}</span>
-      <span className="text-text font-medium text-right tabular-nums">{value}</span>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '12px 0',
+        borderBottom: '1px solid var(--hair-soft)',
+        gap: 12,
+      }}
+    >
+      <span style={{ color: 'var(--ink-mute)', fontSize: 13 }}>{label}</span>
+      <span
+        style={{
+          color: 'var(--ink)',
+          fontFamily: 'var(--f-mono)',
+          fontFeatureSettings: '"tnum" 1',
+          fontSize: 14,
+          textAlign: 'right',
+        }}
+      >
+        {value}
+      </span>
     </div>
   );
 }

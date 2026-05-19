@@ -4,7 +4,16 @@ interface EmptyStateProps {
 
 export function EmptyState({ message }: EmptyStateProps) {
   return (
-    <div className="text-center py-10 px-5 text-text-3 text-sm bg-surface border border-dashed border-border-strong rounded-[18px]">
+    <div
+      className="card"
+      style={{
+        textAlign: 'center',
+        padding: '40px 20px',
+        color: 'var(--ink-mute)',
+        fontSize: 14,
+        borderStyle: 'dashed',
+      }}
+    >
       {message}
     </div>
   );

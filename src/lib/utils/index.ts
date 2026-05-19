@@ -140,3 +140,33 @@ export const TAG_LABELS: Record<string, string> = {
 };
 
 export const TAG_KEYS = Object.keys(TAG_LABELS);
+
+// Palette of 8 hues used across category swatches/pills.
+// Picked to match the prototype in public/claude.
+export const HUE_PALETTE: number[] = [145, 25, 65, 200, 285, 335, 195, 350];
+
+export function hashHue(name: string): number {
+  if (!name) return HUE_PALETTE[0];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) {
+    h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  return HUE_PALETTE[h % HUE_PALETTE.length];
+}
+
+export function getEntityHue(entity: { name: string; hue?: number | null }): number {
+  if (entity.hue !== undefined && entity.hue !== null) return entity.hue;
+  return hashHue(entity.name);
+}
+
+// Compact due-date label used in row.meta: "10 mai 2026 · em 3d"
+export function dueRowLabel(dueDate: string): string {
+  if (!dueDate) return '';
+  const [y, m, d] = dueDate.split('-').map(Number);
+  const base = `${d} ${MONTHS[m - 1]} ${y}`;
+  const dd = daysFromNow(dueDate);
+  if (dd === null) return base;
+  if (dd < 0) return `${base} · há ${-dd}d`;
+  if (dd === 0) return `${base} · hoje`;
+  return `${base} · em ${dd}d`;
+}

@@ -1,8 +1,9 @@
 'use client';
 
 import { Container } from '@/components/layout/Container';
-import { Header } from '@/components/layout/Header';
+import { PageHead } from '@/components/ui/PageHead';
 import { SettingsForm } from '@/components/profile/SettingsForm';
+import { AppearanceSection } from '@/components/profile/AppearanceSection';
 import { ExportSection } from '@/components/profile/ExportSection';
 import { DangerZone } from '@/components/profile/DangerZone';
 import { useToastContext } from '@/lib/contexts/ToastContext';
@@ -13,19 +14,25 @@ export default function ProfilePage() {
 
   return (
     <Container>
-      <Header title="Perfil" subtitle="Configuracoes" />
+      <PageHead overline="Configurações" title="Perfil" />
 
-      <div className="mt-2 space-y-4">
-        <SettingsForm onSave={() => toast('Configuracoes salvas!')} />
-        <ExportSection onToast={toast} />
-        <DangerZone onToast={toast} />
+      <SettingsForm onSave={() => toast('Configurações salvas!')} />
+      <AppearanceSection />
+      <ExportSection onToast={toast} />
+      <DangerZone onToast={toast} />
 
-        <div className="text-center text-[11px] text-text-3 py-4">
-          <p>Dashboard Financeiro v2.0</p>
-          <p className="mt-1">
-            Dados {Storage.persistent ? 'salvos localmente' : 'em modo demo'}
-          </p>
-        </div>
+      <div
+        style={{
+          textAlign: 'center',
+          fontSize: 11,
+          color: 'var(--ink-faint)',
+          padding: '16px 22px',
+        }}
+      >
+        <p style={{ margin: 0 }}>Dashboard Financeiro v2.0</p>
+        <p style={{ margin: '4px 0 0' }}>
+          Dados {Storage.persistent ? 'salvos localmente' : 'em modo demo'}
+        </p>
       </div>
     </Container>
   );

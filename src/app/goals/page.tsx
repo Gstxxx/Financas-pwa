@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Container } from '@/components/layout/Container';
-import { Header } from '@/components/layout/Header';
+import { PageHead } from '@/components/ui/PageHead';
 import { AdaptiveFab } from '@/components/layout/AdaptiveFab';
 import { GoalList } from '@/components/goals/GoalList';
 import { GoalForm } from '@/components/goals/GoalForm';
@@ -18,13 +18,12 @@ export default function GoalsPage() {
   return (
     <>
       <Container>
-        <Header
+        <PageHead
+          overline={`${goals.length} ${goals.length === 1 ? 'meta' : 'metas'} · objetivos`}
           title="Metas"
-          subtitle={`${goals.length} ${goals.length === 1 ? 'meta' : 'metas'}`}
+          backHref="/analysis"
         />
-        <div className="mt-2">
-          <GoalList />
-        </div>
+        <GoalList />
       </Container>
 
       <AdaptiveFab onAction={() => setShowForm(true)} />

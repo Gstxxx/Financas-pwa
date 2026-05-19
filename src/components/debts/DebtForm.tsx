@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
-import { Input, Select } from '@/components/ui/Input';
+import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { getCurrentMonth, getCurrentYear, parseMoney } from '@/lib/utils';
+import { cn, getCurrentMonth, getCurrentYear, getEntityHue, parseMoney } from '@/lib/utils';
 import type { Debt } from '@/lib/types';
 
 interface DebtFormProps {
@@ -81,15 +81,17 @@ export function DebtForm({ onClose, onSuccess, initialDebt }: DebtFormProps) {
         label="Valor da parcela (R$)"
         type="text"
         inputMode="decimal"
+        numeric
         value={installmentValue}
         onChange={(e) => setInstallmentValue(e.target.value)}
         required
         placeholder="0,00"
       />
       <Input
-        label="Numero de parcelas (0 = fixo/recorrente)"
+        label="Número de parcelas (0 = fixo/recorrente)"
         type="number"
         min="0"
+        numeric
         value={numberOfInstallments}
         onChange={(e) => setNumberOfInstallments(e.target.value)}
       />
@@ -98,57 +100,78 @@ export function DebtForm({ onClose, onSuccess, initialDebt }: DebtFormProps) {
         type="number"
         min="1"
         max="31"
+        numeric
         value={dueDay}
         onChange={(e) => setDueDay(e.target.value)}
       />
-      <div className="grid grid-cols-2 gap-2.5">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Input
-          label="Mes inicio"
+          label="Mês início"
           type="number"
           min="1"
           max="12"
+          numeric
           value={startMonth}
           onChange={(e) => setStartMonth(e.target.value)}
         />
         <Input
-          label="Ano inicio"
+          label="Ano início"
           type="number"
           min="2020"
+          numeric
           value={startYear}
           onChange={(e) => setStartYear(e.target.value)}
         />
       </div>
       {entities.length > 0 && (
-        <div className="mb-3.5">
-          <label className="block text-[11px] text-text-2 mb-1.5 tracking-widest uppercase font-medium">
-            Categorias
-          </label>
-          <div className="flex flex-wrap gap-2">
+        <div style={{ marginBottom: 16 }}>
+          <label className="field-label">Categorias</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {entities.map((ent) => {
               const active = entityIds.includes(ent.id);
+              const hue = getEntityHue(ent);
               return (
                 <button
                   key={ent.id}
                   type="button"
                   onClick={() => toggleEntity(ent.id)}
-                  className={
+                  className={cn('pill')}
+                  style={
                     active
-                      ? 'text-[12px] px-3 py-1.5 rounded-full border border-accent bg-accent/15 text-accent font-medium transition-colors'
-                      : 'text-[12px] px-3 py-1.5 rounded-full border border-border bg-bg text-text-2 font-medium transition-colors hover:border-border-strong'
+                      ? {
+                          height: 30,
+                          padding: '0 12px',
+                          fontSize: 12,
+                          color: `oklch(0.85 0.10 ${hue})`,
+                          borderColor: `oklch(0.55 0.10 ${hue})`,
+                          background: `oklch(0.30 0.06 ${hue} / 0.55)`,
+                          cursor: 'pointer',
+                        }
+                      : {
+                          height: 30,
+                          padding: '0 12px',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                        }
                   }
                 >
+                  <span className="dot" style={{ background: `oklch(0.78 0.12 ${hue})` }} />
                   {ent.name}
                 </button>
               );
             })}
           </div>
           {entityIds.length === 0 && (
-            <p className="text-[11px] text-text-3 mt-1.5">Sem categoria</p>
+            <p style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 8 }}>
+              Sem categoria
+            </p>
           )}
         </div>
       )}
-      <Button type="submit">{isEdit ? 'Salvar alteracoes' : 'Salvar conta'}</Button>
-      <Button variant="ghost" type="button" onClick={onClose}>
+      <Button type="submit" variant="accent">
+        {isEdit ? 'Salvar alterações' : 'Salvar conta'}
+      </Button>
+      <Button variant="ghost" type="button" onClick={onClose} className="mt-2">
         Cancelar
       </Button>
     </form>

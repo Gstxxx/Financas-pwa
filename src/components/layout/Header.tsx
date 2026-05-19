@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHead } from '@/components/ui/PageHead';
 import { getGreeting } from '@/lib/utils';
 
 interface HeaderProps {
@@ -8,20 +9,8 @@ interface HeaderProps {
   rightAction?: React.ReactNode;
 }
 
-export function Header({ title = 'Suas financas', subtitle, rightAction }: HeaderProps) {
-  const greeting = subtitle || getGreeting();
-
-  return (
-    <header className="flex justify-between items-center py-3.5 pb-2">
-      <div>
-        <div className="font-display text-xs font-medium text-text-3 tracking-[0.12em] uppercase">
-          {greeting}
-        </div>
-        <div className="font-display text-[22px] font-semibold mt-1 tracking-tight">
-          {title}
-        </div>
-      </div>
-      {rightAction}
-    </header>
-  );
+/** Legacy shim. New code should use PageHead directly. */
+export function Header({ title = 'Suas finanças', subtitle, rightAction }: HeaderProps) {
+  const overline = subtitle || getGreeting();
+  return <PageHead overline={overline} title={title} right={rightAction} />;
 }
