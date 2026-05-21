@@ -12,8 +12,9 @@
     "build:web": "next build",
     "lint": "next lint",
     "build:electron": "tsc -p electron/tsconfig.json",
+    "build:icon": "node scripts/build-icon.mjs",
     "electron:dev": "concurrently -k -n NEXT,ELEC -c blue,magenta \"next dev\" \"wait-on tcp:3000 && npm run build:electron && cross-env ELECTRON_DEV=1 electron dist-electron/main.js\"",
-    "build": "npm run build:electron && npm run build:web",
+    "build": "npm run build:icon && npm run build:electron && npm run build:web",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win",
     "postinstall": "electron-builder install-app-deps"
@@ -40,7 +41,9 @@
     "electron-builder": "^25.1.8",
     "concurrently": "^9.0.1",
     "wait-on": "^8.0.1",
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "@resvg/resvg-js": "^2.6.2",
+    "png-to-ico": "^2.1.8"
   },
   "build": {
     "appId": "com.financas.desktop",
@@ -52,6 +55,7 @@
     "files": [
       "dist-electron/**/*",
       "out/**/*",
+      "build/icon.ico",
       "package.json"
     ],
     "asarUnpack": [
