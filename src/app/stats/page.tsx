@@ -158,9 +158,11 @@ export default function StatsPage() {
                 </div>
                 <div
                   style={{
-                    fontFamily: 'var(--f-display)',
-                    fontStyle: 'italic',
-                    fontSize: 20,
+                    fontFamily: 'var(--f-mono)',
+                    fontFeatureSettings: '"tnum" 1',
+                    fontWeight: 600,
+                    fontSize: 18,
+                    letterSpacing: '-0.03em',
                     color: 'var(--ink)',
                     marginTop: 2,
                   }}

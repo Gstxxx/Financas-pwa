@@ -9,6 +9,20 @@ export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+// Returns the first code point of a name as a badge glyph, plus whether
+// it's an emoji. Uses Array.from so surrogate pairs (📦, 🎯) aren't sliced
+// in half — name[0] alone would yield a lone surrogate and render as tofu.
+export function getInitialGlyph(name: string | undefined | null): {
+  value: string;
+  isEmoji: boolean;
+} {
+  const trimmed = (name ?? '').trim();
+  if (!trimmed) return { value: '·', isEmoji: false };
+  const first = Array.from(trimmed)[0]!;
+  const isEmoji = /\p{Extended_Pictographic}/u.test(first);
+  return { value: isEmoji ? first : first.toUpperCase(), isEmoji };
+}
+
 // Currency formatting
 export function fmtBRL(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

@@ -32,7 +32,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   userScalable: false,
-  themeColor: '#211d18',
+  themeColor: '#15171b',
 };
 
 const themeInitScript = `

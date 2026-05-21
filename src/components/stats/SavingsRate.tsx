@@ -26,11 +26,12 @@ export function SavingsRate() {
           <div style={{ flex: 1 }}>
             <div
               style={{
-                fontFamily: 'var(--f-display)',
+                fontFamily: 'var(--f-mono)',
+                fontFeatureSettings: '"tnum" 1',
                 fontSize: 36,
-                fontStyle: 'italic',
+                fontWeight: 600,
                 color,
-                letterSpacing: '-0.02em',
+                letterSpacing: '-0.04em',
                 lineHeight: 1,
               }}
             >

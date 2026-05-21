@@ -12,9 +12,9 @@ const THEME_KEY = 'finance_theme';
 const ACCENT_KEY = 'finance_accent';
 
 const THEME_COLOR_META: Record<Theme, string> = {
-  warm: '#211d18',
-  cream: '#f5efe4',
-  noir: '#0a0a0d',
+  warm: '#15171b',
+  cream: '#f7f8fa',
+  noir: '#070708',
 };
 
 function readFromDOM(): { theme: Theme; accent: Accent } {
@@ -71,8 +71,8 @@ export function useTheme() {
 }
 
 export const ACCENT_PREVIEW: Record<Accent, string> = {
-  sage: 'oklch(0.80 0.12 145)',
-  amber: 'oklch(0.82 0.13 80)',
-  lilac: 'oklch(0.78 0.10 295)',
-  sky: 'oklch(0.80 0.10 220)',
+  sage: 'oklch(0.84 0.22 150)',
+  amber: 'oklch(0.86 0.18 80)',
+  lilac: 'oklch(0.78 0.18 295)',
+  sky: 'oklch(0.82 0.16 220)',
 };

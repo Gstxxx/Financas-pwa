@@ -3,43 +3,44 @@
 @tailwind utilities;
 
 /* ───────────────────────────────────────────────
-   Design tokens — warm dark default
+   Design tokens — onyx fintech default
    ─────────────────────────────────────────────── */
 :root {
-  /* Surfaces */
-  --bg: oklch(0.155 0.005 65);
-  --bg-elev: oklch(0.185 0.006 65);
-  --surface: oklch(0.215 0.007 65);
-  --surface-2: oklch(0.26 0.008 65);
-  --hair: oklch(0.32 0.009 65 / 0.85);
-  --hair-soft: oklch(0.32 0.009 65 / 0.5);
+  /* Surfaces — deep neutral, cool */
+  --bg: oklch(0.115 0.003 250);
+  --bg-elev: oklch(0.155 0.005 250);
+  --surface: oklch(0.185 0.007 250);
+  --surface-2: oklch(0.235 0.009 250);
+  --hair: oklch(0.30 0.010 250 / 0.9);
+  --hair-soft: oklch(0.30 0.010 250 / 0.5);
 
-  /* Text */
-  --ink: oklch(0.965 0.006 80);
-  --ink-mid: oklch(0.78 0.010 75);
-  --ink-mute: oklch(0.58 0.012 70);
-  --ink-faint: oklch(0.44 0.013 65);
+  /* Text — pure neutral */
+  --ink: oklch(0.985 0.002 250);
+  --ink-mid: oklch(0.74 0.006 250);
+  --ink-mute: oklch(0.54 0.010 250);
+  --ink-faint: oklch(0.40 0.014 250);
 
-  /* Accents — sage default */
-  --accent: oklch(0.80 0.12 145);
-  --accent-deep: oklch(0.46 0.09 145);
-  --accent-tint: oklch(0.28 0.05 145);
-  --accent-ink: oklch(0.18 0.02 145);
-  --warn: oklch(0.78 0.13 65);
-  --neg: oklch(0.72 0.14 30);
-  --neg-tint: oklch(0.30 0.06 30);
+  /* Accent — electric mint (Cash App-ish) */
+  --accent: oklch(0.84 0.22 150);
+  --accent-deep: oklch(0.52 0.18 150);
+  --accent-tint: oklch(0.26 0.07 150);
+  --accent-ink: oklch(0.13 0.04 150);
+  --warn: oklch(0.82 0.18 75);
+  --neg: oklch(0.70 0.22 28);
+  --neg-tint: oklch(0.26 0.07 28);
 
-  /* Categorical (subdued) */
-  --cat-1: oklch(0.74 0.10 285);
-  --cat-2: oklch(0.78 0.10 25);
-  --cat-3: oklch(0.78 0.11 65);
-  --cat-4: oklch(0.74 0.11 200);
-  --cat-5: oklch(0.74 0.10 340);
+  /* Categorical (saturated, electric) */
+  --cat-1: oklch(0.78 0.16 285);
+  --cat-2: oklch(0.78 0.18 25);
+  --cat-3: oklch(0.84 0.18 80);
+  --cat-4: oklch(0.78 0.16 210);
+  --cat-5: oklch(0.78 0.16 340);
 
   /* Typography */
-  --f-display: var(--font-display), 'Instrument Serif', 'Times New Roman', serif;
-  --f-sans: var(--font-geist-sans), -apple-system, system-ui, sans-serif;
-  --f-mono: var(--font-geist-mono), 'JetBrains Mono', ui-monospace, monospace;
+  --f-emoji: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Segoe UI Symbol';
+  --f-display: var(--font-display), 'Instrument Serif', 'Times New Roman', var(--f-emoji), serif;
+  --f-sans: var(--font-geist-sans), -apple-system, system-ui, var(--f-emoji), sans-serif;
+  --f-mono: var(--font-geist-mono), 'JetBrains Mono', ui-monospace, var(--f-emoji), monospace;
 
   /* Radius scale */
   --r-sm: 10px;
@@ -52,54 +53,54 @@
 
 /* Theme variants */
 .theme-cream {
-  --bg: oklch(0.965 0.008 80);
-  --bg-elev: oklch(0.985 0.005 80);
+  --bg: oklch(0.975 0.003 250);
+  --bg-elev: oklch(0.99 0.002 250);
   --surface: oklch(1 0 0);
-  --surface-2: oklch(0.95 0.008 80);
-  --hair: oklch(0.85 0.012 75 / 0.9);
-  --hair-soft: oklch(0.88 0.010 75 / 0.7);
-  --ink: oklch(0.20 0.012 65);
-  --ink-mid: oklch(0.40 0.012 70);
-  --ink-mute: oklch(0.55 0.012 70);
-  --ink-faint: oklch(0.70 0.010 70);
-  --accent: oklch(0.55 0.13 145);
-  --accent-deep: oklch(0.42 0.10 145);
-  --accent-tint: oklch(0.92 0.04 145);
-  --accent-ink: oklch(0.98 0.005 145);
-  --neg: oklch(0.55 0.17 28);
-  --neg-tint: oklch(0.93 0.04 28);
-  --warn: oklch(0.62 0.14 65);
+  --surface-2: oklch(0.955 0.005 250);
+  --hair: oklch(0.86 0.008 250 / 0.95);
+  --hair-soft: oklch(0.90 0.006 250 / 0.7);
+  --ink: oklch(0.17 0.008 250);
+  --ink-mid: oklch(0.40 0.010 250);
+  --ink-mute: oklch(0.55 0.010 250);
+  --ink-faint: oklch(0.70 0.008 250);
+  --accent: oklch(0.58 0.20 150);
+  --accent-deep: oklch(0.44 0.16 150);
+  --accent-tint: oklch(0.93 0.06 150);
+  --accent-ink: oklch(0.99 0.005 150);
+  --neg: oklch(0.55 0.22 28);
+  --neg-tint: oklch(0.94 0.05 28);
+  --warn: oklch(0.62 0.16 75);
   color-scheme: light;
 }
 
 .theme-noir {
-  --bg: oklch(0.10 0.003 270);
-  --bg-elev: oklch(0.14 0.004 270);
-  --surface: oklch(0.17 0.006 270);
-  --surface-2: oklch(0.22 0.008 270);
-  --hair: oklch(0.30 0.009 270 / 0.85);
-  --hair-soft: oklch(0.30 0.009 270 / 0.5);
-  --ink: oklch(0.97 0 0);
-  --ink-mid: oklch(0.74 0.005 270);
-  --ink-mute: oklch(0.55 0.008 270);
-  --ink-faint: oklch(0.40 0.010 270);
-  --accent: oklch(0.80 0.14 200);
-  --accent-deep: oklch(0.50 0.10 200);
-  --accent-tint: oklch(0.26 0.05 200);
-  --accent-ink: oklch(0.16 0.02 200);
+  --bg: oklch(0.06 0 0);
+  --bg-elev: oklch(0.10 0.002 250);
+  --surface: oklch(0.14 0.004 250);
+  --surface-2: oklch(0.19 0.006 250);
+  --hair: oklch(0.28 0.008 250 / 0.9);
+  --hair-soft: oklch(0.28 0.008 250 / 0.5);
+  --ink: oklch(0.99 0 0);
+  --ink-mid: oklch(0.72 0.005 250);
+  --ink-mute: oklch(0.50 0.008 250);
+  --ink-faint: oklch(0.36 0.010 250);
+  --accent: oklch(0.86 0.24 150);
+  --accent-deep: oklch(0.54 0.20 150);
+  --accent-tint: oklch(0.22 0.08 150);
+  --accent-ink: oklch(0.10 0.04 150);
   color-scheme: dark;
 }
 
 /* Accent variants (overlay onto current theme) */
-.accent-sage   { --accent: oklch(0.80 0.12 145); --accent-deep: oklch(0.46 0.09 145); --accent-tint: oklch(0.28 0.05 145); --accent-ink: oklch(0.18 0.02 145); }
-.accent-amber  { --accent: oklch(0.82 0.13 80);  --accent-deep: oklch(0.50 0.10 80);  --accent-tint: oklch(0.30 0.05 80);  --accent-ink: oklch(0.20 0.02 80);  }
-.accent-lilac  { --accent: oklch(0.78 0.10 295); --accent-deep: oklch(0.48 0.08 295); --accent-tint: oklch(0.30 0.05 295); --accent-ink: oklch(0.18 0.02 295); }
-.accent-sky    { --accent: oklch(0.80 0.10 220); --accent-deep: oklch(0.48 0.08 220); --accent-tint: oklch(0.30 0.05 220); --accent-ink: oklch(0.18 0.02 220); }
+.accent-sage   { --accent: oklch(0.84 0.22 150); --accent-deep: oklch(0.52 0.18 150); --accent-tint: oklch(0.26 0.07 150); --accent-ink: oklch(0.13 0.04 150); }
+.accent-amber  { --accent: oklch(0.86 0.18 80);  --accent-deep: oklch(0.54 0.14 80);  --accent-tint: oklch(0.28 0.07 80);  --accent-ink: oklch(0.16 0.03 80);  }
+.accent-lilac  { --accent: oklch(0.78 0.18 295); --accent-deep: oklch(0.48 0.14 295); --accent-tint: oklch(0.26 0.07 295); --accent-ink: oklch(0.14 0.04 295); }
+.accent-sky    { --accent: oklch(0.82 0.16 220); --accent-deep: oklch(0.50 0.13 220); --accent-tint: oklch(0.26 0.06 220); --accent-ink: oklch(0.14 0.03 220); }
 
-.theme-cream.accent-sage   { --accent: oklch(0.55 0.13 145); --accent-tint: oklch(0.92 0.04 145); }
-.theme-cream.accent-amber  { --accent: oklch(0.58 0.14 80);  --accent-tint: oklch(0.94 0.05 80);  }
-.theme-cream.accent-lilac  { --accent: oklch(0.55 0.12 295); --accent-tint: oklch(0.92 0.04 295); }
-.theme-cream.accent-sky    { --accent: oklch(0.55 0.12 220); --accent-tint: oklch(0.92 0.04 220); }
+.theme-cream.accent-sage   { --accent: oklch(0.58 0.20 150); --accent-tint: oklch(0.93 0.06 150); --accent-ink: oklch(0.99 0.005 150); }
+.theme-cream.accent-amber  { --accent: oklch(0.62 0.16 80);  --accent-tint: oklch(0.94 0.06 80);  --accent-ink: oklch(0.99 0.005 80);  }
+.theme-cream.accent-lilac  { --accent: oklch(0.55 0.18 295); --accent-tint: oklch(0.93 0.05 295); --accent-ink: oklch(0.99 0.005 295); }
+.theme-cream.accent-sky    { --accent: oklch(0.55 0.16 220); --accent-tint: oklch(0.93 0.05 220); --accent-ink: oklch(0.99 0.005 220); }
 
 /* ── Base reset ── */
 * {
@@ -127,8 +128,7 @@ html, body {
 
 body {
   background:
-    radial-gradient(ellipse 80% 50% at 20% -10%, color-mix(in oklch, var(--accent) 8%, transparent), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 90% 110%, color-mix(in oklch, var(--accent-deep) 6%, transparent), transparent 60%),
+    radial-gradient(ellipse 90% 35% at 50% -20%, color-mix(in oklch, var(--accent) 5%, transparent), transparent 70%),
     var(--bg);
   background-attachment: fixed;
   transition: background-color 0.32s ease, color 0.18s ease;
@@ -161,11 +161,10 @@ input[type="date"] { color-scheme: inherit; }
   color: var(--ink-mute);
 }
 .t-h1 {
-  font-family: var(--f-display);
-  font-weight: 400;
-  font-style: italic;
-  font-size: 36px;
-  letter-spacing: -0.02em;
+  font-family: var(--f-sans);
+  font-weight: 600;
+  font-size: 32px;
+  letter-spacing: -0.028em;
   line-height: 1;
   color: var(--ink);
   margin: 0;

@@ -10,8 +10,8 @@ interface MoneyProps {
 }
 
 const SIZES: Record<Size, { rs: number; big: number; cents: number; gap: number }> = {
-  xl: { rs: 14, big: 56, cents: 22, gap: 6 },
-  lg: { rs: 11, big: 32, cents: 14, gap: 4 },
+  xl: { rs: 13, big: 62, cents: 22, gap: 5 },
+  lg: { rs: 11, big: 34, cents: 14, gap: 4 },
   md: { rs: 10, big: 22, cents: 11, gap: 3 },
   sm: { rs: 9,  big: 16, cents: 10, gap: 2 },
 };
@@ -29,9 +29,10 @@ export function Money({ value, size = 'lg', sign = true, color }: MoneyProps) {
         display: 'inline-flex',
         alignItems: 'baseline',
         gap: s.gap,
-        fontFamily: 'var(--f-display)',
+        fontFamily: 'var(--f-mono)',
+        fontFeatureSettings: '"tnum" 1, "ss01" 1',
         lineHeight: 1,
-        letterSpacing: '-0.02em',
+        letterSpacing: '-0.035em',
         color: color || 'inherit',
       }}
     >
@@ -48,16 +49,15 @@ export function Money({ value, size = 'lg', sign = true, color }: MoneyProps) {
       >
         R$
       </span>
-      <span style={{ fontSize: s.big, fontWeight: 400, fontStyle: 'italic' }}>
+      <span style={{ fontSize: s.big, fontWeight: 600 }}>
         {sign && negative ? '−' : ''}
         {reais}
       </span>
       <span
         style={{
           fontSize: s.cents,
-          fontWeight: 400,
-          fontStyle: 'italic',
-          color: 'var(--ink-mid)',
+          fontWeight: 500,
+          color: 'var(--ink-mute)',
         }}
       >
         ,{cents}

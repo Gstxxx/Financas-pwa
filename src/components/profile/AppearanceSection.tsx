@@ -4,16 +4,16 @@ import { useTheme, ACCENT_PREVIEW, ACCENTS, THEMES, type Theme, type Accent } fr
 import { Seg } from '@/components/ui/Seg';
 
 const THEME_LABELS: Record<Theme, string> = {
-  warm: 'Warm',
-  cream: 'Cream',
+  warm: 'Onyx',
+  cream: 'Light',
   noir: 'Noir',
 };
 
 const ACCENT_LABELS: Record<Accent, string> = {
-  sage: 'Sage',
+  sage: 'Mint',
   amber: 'Amber',
-  lilac: 'Lilac',
-  sky: 'Sky',
+  lilac: 'Violet',
+  sky: 'Cyan',
 };
 
 export function AppearanceSection() {

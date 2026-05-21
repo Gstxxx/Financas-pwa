@@ -7,7 +7,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { EntityForm } from '@/components/entities/EntityForm';
 import { NumMono } from '@/components/ui/NumMono';
-import { getCurrentMonth, getCurrentYear, getEntityHue } from '@/lib/utils';
+import { getCurrentMonth, getCurrentYear, getEntityHue, getInitialGlyph } from '@/lib/utils';
 import type { Entity } from '@/lib/types';
 
 export function EntityList() {
@@ -49,6 +49,7 @@ export function EntityList() {
             const bd = valueByEntity.get(entity.id);
             const value = bd?.value ?? 0;
             const pct = value > 0 ? (value / totalOut) * 100 : 0;
+            const glyph = getInitialGlyph(entity.name);
             return (
               <div
                 key={entity.id}
@@ -72,14 +73,15 @@ export function EntityList() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontFamily: 'var(--f-display)',
-                    fontStyle: 'italic',
-                    fontSize: 18,
+                    fontFamily: 'var(--f-sans)',
+                    fontWeight: glyph.isEmoji ? 400 : 600,
+                    fontSize: glyph.isEmoji ? 20 : 16,
+                    letterSpacing: glyph.isEmoji ? 0 : '-0.01em',
                     color: `oklch(0.85 0.10 ${hue})`,
                     flexShrink: 0,
                   }}
                 >
-                  {entity.name[0]?.toUpperCase()}
+                  {glyph.value}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 16, fontWeight: 500, letterSpacing: '-0.005em' }}>

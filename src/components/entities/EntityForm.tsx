@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { HUE_PALETTE, hashHue } from '@/lib/utils';
+import { HUE_PALETTE, getInitialGlyph, hashHue } from '@/lib/utils';
 import type { Entity } from '@/lib/types';
 
 interface EntityFormProps {
@@ -54,6 +54,7 @@ export function EntityForm({ onClose, onSuccess, initialEntity }: EntityFormProp
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {HUE_PALETTE.map((h) => {
             const active = h === hue;
+            const glyph = getInitialGlyph(name);
             return (
               <button
                 key={h}
@@ -67,9 +68,10 @@ export function EntityForm({ onClose, onSuccess, initialEntity }: EntityFormProp
                   background: `oklch(0.30 0.06 ${h})`,
                   border: `2px solid ${active ? 'var(--ink)' : `oklch(0.45 0.08 ${h} / 0.6)`}`,
                   color: `oklch(0.85 0.10 ${h})`,
-                  fontFamily: 'var(--f-display)',
-                  fontStyle: 'italic',
-                  fontSize: 16,
+                  fontFamily: 'var(--f-sans)',
+                  fontWeight: glyph.isEmoji ? 400 : 600,
+                  fontSize: glyph.isEmoji ? 18 : 15,
+                  letterSpacing: glyph.isEmoji ? 0 : '-0.01em',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -78,7 +80,7 @@ export function EntityForm({ onClose, onSuccess, initialEntity }: EntityFormProp
                   transform: active ? 'scale(1.06)' : 'scale(1)',
                 }}
               >
-                {(name[0] || '·').toUpperCase()}
+                {glyph.value}
               </button>
             );
           })}
