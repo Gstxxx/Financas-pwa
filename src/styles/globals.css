@@ -478,61 +478,6 @@ select.input {
   max-width: 448px;
   transition: background-color 0.32s ease, border-color 0.32s ease;
 }
-@media (min-width: 900px) {
-  /* Sidebar mode: the bottom tabbar transforms into a vertical rail
-     anchored to the left, sitting flush below the title bar. */
-  .tabbar {
-    top: 36px;
-    right: auto;
-    bottom: 0;
-    width: 232px;
-    padding: 18px 14px;
-    background: var(--bg-elev);
-    border-right: 1px solid var(--hair);
-    justify-content: flex-start;
-    align-items: stretch;
-    pointer-events: auto;
-  }
-  .tabbar-inner {
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    padding: 0;
-    grid-template-columns: 1fr;
-    grid-auto-rows: 46px;
-    gap: 2px;
-    width: 100%;
-    max-width: none;
-    align-self: stretch;
-  }
-  .tab {
-    flex-direction: row;
-    justify-content: flex-start;
-    align-items: center;
-    height: 44px;
-    padding: 0 14px;
-    gap: 11px;
-    font-size: 12.5px;
-    letter-spacing: 0.02em;
-    text-transform: none;
-    border-radius: 10px;
-  }
-  .tab span {
-    flex: 1;
-    text-align: left;
-  }
-  /* Main content shifts right to clear the sidebar. */
-  .app-container {
-    padding-left: 252px !important;
-  }
-  /* FAB row sits over the main content, not the sidebar. */
-  .fab-row {
-    left: 232px;
-    bottom: 28px;
-  }
-}
 .tab {
   display: flex;
   flex-direction: column;
@@ -602,6 +547,61 @@ select.input {
   background: color-mix(in oklch, var(--accent) 92%, transparent);
   color: var(--accent-ink);
   border-color: transparent;
+}
+
+/* Sidebar mode: at desktop widths the bottom tabbar transforms into a
+   vertical rail. Placed after the base .tab / .fab-row rules so the
+   media-query overrides actually win in source-order. */
+@media (min-width: 900px) {
+  .tabbar {
+    top: 36px;
+    right: auto;
+    bottom: 0;
+    width: 188px;
+    padding: 14px 10px;
+    background: var(--bg-elev);
+    border-right: 1px solid var(--hair);
+    justify-content: flex-start;
+    align-items: stretch;
+    pointer-events: auto;
+  }
+  .tabbar-inner {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    padding: 0;
+    grid-template-columns: 1fr;
+    grid-auto-rows: 40px;
+    gap: 2px;
+    width: 100%;
+    max-width: none;
+    align-self: stretch;
+  }
+  .tab {
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    height: 40px;
+    padding: 0 12px;
+    gap: 11px;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    border-radius: 10px;
+  }
+  .tab span {
+    flex: 1;
+    text-align: left;
+  }
+  .app-container {
+    padding-left: 208px !important;
+  }
+  .fab-row {
+    left: 188px;
+    bottom: 28px;
+  }
 }
 
 /* ── Row (list rows in cards) ── */
