@@ -37,7 +37,21 @@ const desktop = {
   platform: process.platform,
 };
 
-const api = { storage, desktop } as const;
+const win = {
+  minimize: () => ipcRenderer.invoke('window:minimize') as Promise<void>,
+  toggleMaximize: () => ipcRenderer.invoke('window:toggleMaximize') as Promise<boolean>,
+  close: () => ipcRenderer.invoke('window:close') as Promise<void>,
+  isMaximized: () => ipcRenderer.invoke('window:isMaximized') as Promise<boolean>,
+  onMaximizedChange: (cb: (maximized: boolean) => void): (() => void) => {
+    const handler = (_e: unknown, maximized: boolean) => cb(maximized);
+    ipcRenderer.on('window:maximizedChange', handler);
+    return () => {
+      ipcRenderer.off('window:maximizedChange', handler);
+    };
+  },
+};
+
+const api = { storage, desktop, window: win } as const;
 
 contextBridge.exposeInMainWorld('electron', api);
 

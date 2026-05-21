@@ -18,11 +18,20 @@ interface ElectronDesktopAPI {
   platform: NodeJS.Platform;
 }
 
+interface ElectronWindowAPI {
+  minimize(): Promise<void>;
+  toggleMaximize(): Promise<boolean>;
+  close(): Promise<void>;
+  isMaximized(): Promise<boolean>;
+  onMaximizedChange(cb: (maximized: boolean) => void): () => void;
+}
+
 declare global {
   interface Window {
     electron?: {
       storage: ElectronStorageAPI;
       desktop: ElectronDesktopAPI;
+      window: ElectronWindowAPI;
     };
   }
 }

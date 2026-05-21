@@ -334,6 +334,71 @@ select.input {
   padding-right: 36px;
 }
 
+/* ── Title bar (frameless desktop window) ── */
+.titlebar {
+  height: 36px;
+  background: color-mix(in oklch, var(--bg-elev) 92%, transparent);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border-bottom: 1px solid var(--hair-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 16px;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  /* Whole bar is draggable; interactive children opt out below. */
+  -webkit-app-region: drag;
+  app-region: drag;
+  flex-shrink: 0;
+}
+.titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.titlebar-title {
+  font-family: var(--f-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.titlebar-controls {
+  display: flex;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  height: 100%;
+}
+.titlebar-btn {
+  width: 46px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--ink-mute);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.titlebar-btn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.titlebar-btn.titlebar-close:hover {
+  background: var(--neg);
+  color: oklch(0.98 0 0);
+}
+.titlebar-btn:focus-visible {
+  outline: none;
+  background: var(--surface-2);
+}
+
 /* ── Tabbar (bottom nav) ── */
 .tabbar {
   position: fixed;
