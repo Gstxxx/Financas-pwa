@@ -5,6 +5,7 @@ import { PageHead } from '@/components/ui/PageHead';
 import { SettingsForm } from '@/components/profile/SettingsForm';
 import { AppearanceSection } from '@/components/profile/AppearanceSection';
 import { ExportSection } from '@/components/profile/ExportSection';
+import { DesktopSection } from '@/components/profile/DesktopSection';
 import { DangerZone } from '@/components/profile/DangerZone';
 import { useToastContext } from '@/lib/contexts/ToastContext';
 import { Storage } from '@/lib/storage';
@@ -19,6 +20,7 @@ export default function ProfilePage() {
       <SettingsForm onSave={() => toast('Configurações salvas!')} />
       <AppearanceSection />
       <ExportSection onToast={toast} />
+      <DesktopSection />
       <DangerZone onToast={toast} />
 
       <div
