@@ -22,12 +22,18 @@ export default function HomePage() {
 
   return (
     <>
-      <Container>
+      <Container width="wide">
         <PageHead overline={overline} title="Suas finanças" />
-        <HeroBalance />
-        <StatsGrid />
-        <QuickActions />
-        <UpcomingBills />
+        <div className="home-split">
+          <div className="home-col">
+            <HeroBalance />
+            <StatsGrid />
+            <QuickActions />
+          </div>
+          <div className="home-col">
+            <UpcomingBills />
+          </div>
+        </div>
       </Container>
 
       <AdaptiveFab

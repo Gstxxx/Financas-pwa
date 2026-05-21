@@ -6,6 +6,7 @@ import { FinanceProvider } from '@/lib/contexts/FinanceContext';
 import { ToastProvider } from '@/lib/contexts/ToastContext';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { TitleBar } from '@/components/layout/TitleBar';
+import { NotificationScheduler } from '@/components/layout/NotificationScheduler';
 import { PWARegister } from '@/components/layout/PWARegister';
 import '@/styles/globals.css';
 
@@ -69,6 +70,7 @@ export default function RootLayout({
         <TitleBar />
         <FinanceProvider>
           <ToastProvider>
+            <NotificationScheduler />
             {children}
             <BottomNav />
             <PWARegister />

@@ -334,7 +334,49 @@ select.input {
   padding-right: 36px;
 }
 
-/* ── Title bar (frameless desktop window) ── */
+/* ── Responsive container ── */
+.app-container {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 480px;
+  width: 100%;
+}
+@media (min-width: 900px) {
+  .app-container-narrow {
+    max-width: 720px;
+  }
+  .app-container-wide {
+    max-width: 1100px;
+  }
+  /* Push content above the wider bottom nav. */
+  .app-container {
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* Home-page split: two columns on desktop, single column on mobile. */
+.home-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .home-split {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 18px;
+    padding: 0 6px;
+  }
+  /* When the home-split is active, suppress the padding the inner
+     components apply for the mobile column layout. */
+  .home-split > .home-col > .card,
+  .home-split > .home-col > div > .card {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+/* Title bar (frameless desktop window) */
 .titlebar {
   height: 36px;
   background: color-mix(in oklch, var(--bg-elev) 92%, transparent);
@@ -358,6 +400,15 @@ select.input {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.titlebar-icon {
+  display: inline-flex;
+  align-items: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
 }
 .titlebar-title {
   font-family: var(--f-sans);
@@ -426,6 +477,11 @@ select.input {
   width: 100%;
   max-width: 448px;
   transition: background-color 0.32s ease, border-color 0.32s ease;
+}
+@media (min-width: 900px) {
+  .tabbar-inner {
+    max-width: 560px;
+  }
 }
 .tab {
   display: flex;
