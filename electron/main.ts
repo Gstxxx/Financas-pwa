@@ -150,13 +150,22 @@ function createTray() {
   });
 }
 
-function ensureAutoStart() {
-  if (process.platform !== 'win32' || isDev) return;
-  app.setLoginItemSettings({
-    openAtLogin: true,
+// Settings used both when *writing* the login item and when *reading* it
+// back. On Windows, getLoginItemSettings without these args checks a
+// different registry key than the one setLoginItemSettings creates, so
+// you must pass the same path/args to both calls.
+function getLoginItemOpts(): { path: string; args: string[] } {
+  return {
     path: app.getPath('exe'),
     args: ['--hidden'],
-  });
+  };
+}
+
+function getAutoStartState(): boolean {
+  if (process.platform !== 'win32') {
+    return app.getLoginItemSettings().openAtLogin;
+  }
+  return app.getLoginItemSettings(getLoginItemOpts()).openAtLogin;
 }
 
 function registerIpc() {
@@ -187,16 +196,15 @@ function registerIpc() {
     return true;
   });
 
-  ipcMain.handle('app:getAutoStart', () => app.getLoginItemSettings().openAtLogin);
+  ipcMain.handle('app:getAutoStart', () => getAutoStartState());
   ipcMain.handle('app:setAutoStart', (_e, enabled: boolean) => {
     if (process.platform === 'win32') {
       app.setLoginItemSettings({
         openAtLogin: enabled,
-        path: app.getPath('exe'),
-        args: ['--hidden'],
+        ...getLoginItemOpts(),
       });
     }
-    return app.getLoginItemSettings().openAtLogin;
+    return getAutoStartState();
   });
 
   ipcMain.handle('app:quit', () => {
@@ -241,7 +249,6 @@ app.whenReady().then(() => {
 
   createWindow();
   createTray();
-  ensureAutoStart();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
