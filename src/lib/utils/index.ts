@@ -27,10 +27,43 @@ export function parseMoney(input: string | number | null | undefined): number {
   if (lastComma > lastDot) {
     normalized = s.replace(/\./g, '').replace(',', '.');
   } else if (lastDot > lastComma) {
-    normalized = s.replace(/,/g, '');
+    if (lastComma === -1) {
+      // No comma: dot is ambiguous (decimal vs thousands). Treat as
+      // thousands when multiple dots, or single dot followed by exactly
+      // 3 digits — matches BRL formatting like "10.000".
+      const dotCount = (s.match(/\./g) || []).length;
+      const tail = s.slice(lastDot + 1);
+      if (dotCount > 1 || /^\d{3}$/.test(tail)) {
+        normalized = s.replace(/\./g, '');
+      }
+    } else {
+      // Comma before dot — US-style "1,234.56"
+      normalized = s.replace(/,/g, '');
+    }
   }
   const v = parseFloat(normalized);
   return isNaN(v) ? 0 : v;
+}
+
+// Format a raw user-typed string into BRL-style display: thousand dots
+// and decimal comma. Use this on every keystroke for live formatting.
+export function fmtMoneyInput(input: string): string {
+  if (!input) return '';
+  const cleaned = input.replace(/[^\d,]/g, '');
+  if (!cleaned) return '';
+  const firstComma = cleaned.indexOf(',');
+  let intPart: string;
+  let decPart: string | undefined;
+  if (firstComma === -1) {
+    intPart = cleaned;
+  } else {
+    intPart = cleaned.slice(0, firstComma);
+    decPart = cleaned.slice(firstComma + 1).replace(/,/g, '').slice(0, 2);
+  }
+  intPart = intPart.replace(/^0+(?=\d)/, '');
+  if (intPart === '' && decPart !== undefined) intPart = '0';
+  const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return decPart !== undefined ? `${formatted},${decPart}` : formatted;
 }
 
 export function fmtBRLParts(value: number): { sign: string; integer: string; cents: string } {

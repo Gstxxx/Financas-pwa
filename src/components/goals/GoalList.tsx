@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { NumMono } from '@/components/ui/NumMono';
 import { Ring } from '@/components/charts/Ring';
-import { getEntityHue, parseMoney } from '@/lib/utils';
+import { fmtMoneyInput, getEntityHue, parseMoney } from '@/lib/utils';
 import type { Goal } from '@/lib/types';
 
 const GOAL_TYPE_LABELS: Record<string, string> = {
@@ -111,7 +111,7 @@ export function GoalList() {
               style={{ padding: '18px 18px', cursor: 'pointer' }}
               onClick={() => {
                 setSelectedGoal(goal);
-                setEditValue(goal.currentValue.toFixed(2).replace('.', ','));
+                setEditValue(fmtMoneyInput(goal.currentValue.toFixed(2).replace('.', ',')));
               }}
             >
               <div
@@ -219,7 +219,7 @@ export function GoalList() {
               inputMode="decimal"
               numeric
               value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
+              onChange={(e) => setEditValue(fmtMoneyInput(e.target.value))}
             />
             <Button type="submit" variant="accent">
               Atualizar progresso

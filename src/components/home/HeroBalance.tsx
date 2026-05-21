@@ -11,6 +11,7 @@ export function HeroBalance() {
     getTotalIncome,
     getTotalExpenses,
     getPaidExpenses,
+    getPixOutForMonth,
     getBalance,
     getRecentBalances,
   } = useFinanceData();
@@ -23,10 +24,14 @@ export function HeroBalance() {
     );
   }
 
+  const now = new Date();
   const balance = getBalance();
   const totalExpenses = getTotalExpenses();
   const paidExpenses = getPaidExpenses();
-  const pendingExpenses = Math.max(totalExpenses - paidExpenses, 0);
+  const pixOut = getPixOutForMonth(now.getMonth() + 1, now.getFullYear());
+  // "Faltam a pagar" = bills/installments deste mês ainda não pagos.
+  // PIX/saídas avulsas já saíram da conta — não contam como pendência.
+  const pendingExpenses = Math.max(totalExpenses - paidExpenses - pixOut, 0);
   const projected = getTotalIncome() - totalExpenses;
   const recent = getRecentBalances(5);
   const negative = balance < 0;

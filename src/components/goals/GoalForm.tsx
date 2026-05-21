@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
 import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { HUE_PALETTE, getTodayISO, hashHue, parseMoney } from '@/lib/utils';
+import { HUE_PALETTE, fmtMoneyInput, getTodayISO, hashHue, parseMoney } from '@/lib/utils';
 
 interface GoalFormProps {
   onClose: () => void;
@@ -63,9 +63,9 @@ export function GoalForm({ onClose, onSuccess }: GoalFormProps) {
         inputMode="decimal"
         numeric
         value={targetValue}
-        onChange={(e) => setTargetValue(e.target.value)}
+        onChange={(e) => setTargetValue(fmtMoneyInput(e.target.value))}
         required
-        placeholder="10000"
+        placeholder="10.000"
       />
       <Input
         label="Valor atual (R$)"
@@ -73,7 +73,7 @@ export function GoalForm({ onClose, onSuccess }: GoalFormProps) {
         inputMode="decimal"
         numeric
         value={currentValue}
-        onChange={(e) => setCurrentValue(e.target.value)}
+        onChange={(e) => setCurrentValue(fmtMoneyInput(e.target.value))}
       />
       <Input
         label="Prazo"
