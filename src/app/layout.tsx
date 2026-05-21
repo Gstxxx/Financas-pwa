@@ -5,6 +5,7 @@ import { GeistMono } from 'geist/font/mono';
 import { FinanceProvider } from '@/lib/contexts/FinanceContext';
 import { ToastProvider } from '@/lib/contexts/ToastContext';
 import { BottomNav } from '@/components/layout/BottomNav';
+import { TitleBar } from '@/components/layout/TitleBar';
 import { PWARegister } from '@/components/layout/PWARegister';
 import '@/styles/globals.css';
 
@@ -65,6 +66,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="font-sans">
+        <TitleBar />
         <FinanceProvider>
           <ToastProvider>
             {children}

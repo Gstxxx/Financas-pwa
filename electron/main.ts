@@ -59,12 +59,23 @@ function createWindow() {
     autoHideMenuBar: true,
     title: 'Financas',
     show: !startedHidden,
+    frame: false,
+    resizable: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
     },
+  });
+
+  // Notify the renderer when maximize state changes so the title bar can
+  // swap its maximize/restore icon.
+  mainWindow.on('maximize', () => {
+    mainWindow?.webContents.send('window:maximizedChange', true);
+  });
+  mainWindow.on('unmaximize', () => {
+    mainWindow?.webContents.send('window:maximizedChange', false);
   });
 
   if (isDev) {
@@ -187,6 +198,28 @@ function registerIpc() {
   });
 
   ipcMain.handle('app:openExternal', (_e, url: string) => shell.openExternal(url));
+
+  // Frameless window controls — replace the native title bar buttons.
+  ipcMain.handle('window:minimize', () => {
+    mainWindow?.minimize();
+  });
+
+  ipcMain.handle('window:toggleMaximize', () => {
+    if (!mainWindow) return false;
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+      return false;
+    }
+    mainWindow.maximize();
+    return true;
+  });
+
+  ipcMain.handle('window:close', () => {
+    // Goes through our own 'close' handler that hides to tray instead of quitting.
+    mainWindow?.close();
+  });
+
+  ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized() ?? false);
 }
 
 app.whenReady().then(() => {
