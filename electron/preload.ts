@@ -98,6 +98,8 @@ const pluggy = {
       message?: string;
     }>,
   listItems: () => ipcRenderer.invoke('pluggy:listItems') as Promise<unknown[]>,
+  loginFlow: () =>
+    ipcRenderer.invoke('pluggy:loginFlow') as Promise<{ ok: boolean; message?: string }>,
 };
 
 const win = {

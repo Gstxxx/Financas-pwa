@@ -76,6 +76,7 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
   const [sessionInput, setSessionInput] = useState('');
   const [sessionTesting, setSessionTesting] = useState(false);
   const [importingItems, setImportingItems] = useState(false);
+  const [autoLoggingIn, setAutoLoggingIn] = useState(false);
 
   const refreshSessionInfo = async () => {
     if (!pluggy) return;
@@ -234,8 +235,8 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
     onToast('Sessão removida.');
   };
 
-  const importItemsFromSession = async () => {
-    if (!pluggy) return;
+  const importItemsFromSession = async (silent = false): Promise<number> => {
+    if (!pluggy) return 0;
     setImportingItems(true);
     try {
       const items = (await pluggy.listItems()) as PluggyItemInfo[];
@@ -260,15 +261,46 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
         });
         created++;
       }
-      onToast(
-        created === 0 && skipped > 0
-          ? `Já estavam todas importadas (${skipped})`
-          : `${created} bancos importados${skipped > 0 ? ` · ${skipped} já existiam` : ''}`
-      );
+      if (!silent) {
+        onToast(
+          created === 0 && skipped > 0
+            ? `Já estavam todas importadas (${skipped})`
+            : `${created} bancos importados${skipped > 0 ? ` · ${skipped} já existiam` : ''}`
+        );
+      }
+      return created;
     } catch (err) {
       onToast(`Falha ao listar: ${err instanceof Error ? err.message : String(err)}`);
+      return 0;
     } finally {
       setImportingItems(false);
+    }
+  };
+
+  /**
+   * One-click flow: opens meu.pluggy.ai in a child window, sniffs the
+   * Bearer token from the first authenticated request, then auto-imports
+   * the items the user already has linked over there.
+   */
+  const handleAutoLogin = async () => {
+    if (!pluggy) return;
+    setAutoLoggingIn(true);
+    try {
+      const result = await pluggy.loginFlow();
+      await refreshSessionInfo();
+      if (!result.ok) {
+        onToast(result.message ?? 'Login cancelado');
+        return;
+      }
+      onToast('Token capturado!');
+      const created = await importItemsFromSession(true);
+      if (created > 0) {
+        onToast(`${created} bancos importados`);
+      } else {
+        onToast('Sessão pronta — sem bancos novos pra importar');
+      }
+    } finally {
+      setAutoLoggingIn(false);
     }
   };
 
@@ -320,9 +352,24 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
         </p>
 
         {!sessionInfo.hasSession && !showSessionForm && (
-          <Button type="button" variant="ghost" onClick={() => setShowSessionForm(true)}>
-            Colar token de sessão
-          </Button>
+          <>
+            <Button
+              type="button"
+              variant="accent"
+              onClick={handleAutoLogin}
+              disabled={autoLoggingIn}
+            >
+              {autoLoggingIn ? 'Aguardando login…' : '⚡ Conectar via dashboard (automático)'}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="mt-2"
+              onClick={() => setShowSessionForm(true)}
+            >
+              Ou cole token manualmente
+            </Button>
+          </>
         )}
 
         {!sessionInfo.hasSession && showSessionForm && (
@@ -416,21 +463,43 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
               )}
             </div>
 
-            <Button
-              type="button"
-              variant="accent"
-              onClick={importItemsFromSession}
-              disabled={importingItems || sessionInfo.expired}
-            >
-              {importingItems ? 'Importando…' : 'Importar bancos conectados'}
-            </Button>
+            {sessionInfo.expired ? (
+              <Button
+                type="button"
+                variant="accent"
+                onClick={handleAutoLogin}
+                disabled={autoLoggingIn}
+              >
+                {autoLoggingIn ? 'Aguardando login…' : '⚡ Renovar via dashboard'}
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="accent"
+                  onClick={() => importItemsFromSession(false)}
+                  disabled={importingItems}
+                >
+                  {importingItems ? 'Importando…' : 'Importar bancos conectados'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="mt-2"
+                  onClick={handleAutoLogin}
+                  disabled={autoLoggingIn}
+                >
+                  {autoLoggingIn ? 'Aguardando…' : '⚡ Renovar via dashboard'}
+                </Button>
+              </>
+            )}
             <Button
               type="button"
               variant="ghost"
               className="mt-2"
               onClick={() => setShowSessionForm(true)}
             >
-              Trocar token
+              Colar novo token manualmente
             </Button>
             <Button type="button" variant="ghost" className="mt-2" onClick={removeSession}>
               Remover sessão
