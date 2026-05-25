@@ -10,6 +10,7 @@ const SHORTCUTS: { combo: string; label: string }[] = [
   { combo: 'Ctrl + 7', label: 'Estatísticas' },
   { combo: 'Ctrl + 8', label: 'Perfil' },
   { combo: 'Ctrl + 9', label: 'Chat (IA)' },
+  { combo: 'Ctrl + 0', label: 'Open Finance (banco)' },
   { combo: 'Ctrl + N', label: 'Nova conta' },
   { combo: 'Ctrl + G', label: 'Nova meta' },
   { combo: 'Ctrl + I', label: 'Novo lançamento' },

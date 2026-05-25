@@ -126,6 +126,42 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Custom scrollbar — thin, theme-aware, no border. Replaces the OS
+   default (chunky Windows gray bar) without losing the visual indicator
+   of where you are in a long page. Firefox gets the same look via
+   scrollbar-width/color. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--hair) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--ink) 14%, transparent);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.18s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--ink) 28%, transparent);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   background:
     radial-gradient(ellipse 90% 35% at 50% -20%, color-mix(in oklch, var(--accent) 5%, transparent), transparent 70%),
