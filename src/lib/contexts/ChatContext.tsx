@@ -75,16 +75,46 @@ interface ChatContextValue {
 
 const ChatContext = createContext<ChatContextValue | null>(null);
 
-const SYSTEM_PROMPT = `Você é o assistente financeiro do app Financas, um dashboard pessoal de finanças do usuário (em português brasileiro).
+/** Built fresh per request so `today` reflects reality, not the model's
+ * training cutoff. Without this the LLM happily writes 2023-xx-xx into
+ * tool calls. */
+function getSystemPrompt(): string {
+  const now = new Date();
+  const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const weekdayPt = [
+    'domingo',
+    'segunda-feira',
+    'terça-feira',
+    'quarta-feira',
+    'quinta-feira',
+    'sexta-feira',
+    'sábado',
+  ][now.getDay()];
 
-REGRAS:
+  return `Você é o assistente financeiro do app Financas, um dashboard pessoal de finanças do usuário (em português brasileiro).
+
+DATA E HORA:
+- Hoje é ${weekdayPt}, ${todayISO}. SEMPRE use esta como a data de referência.
+- "Hoje" = ${todayISO}. "Amanhã" = ${addDaysISO(todayISO, 1)}. "Ontem" = ${addDaysISO(todayISO, -1)}.
+- NUNCA invente datas. NUNCA use datas de anos anteriores como 2023, 2024 só por hábito do seu treino.
+- Se o usuário não especificou uma data ao lançar despesa/receita, OMITA o parâmetro \`date\` da tool (o app preenche com hoje automaticamente). Não chute uma data.
+
+REGRAS GERAIS:
 - Responda sempre em português brasileiro.
-- Use as ferramentas (tools) pra buscar dados reais. Não invente valores nem datas.
+- Use as ferramentas (tools) pra buscar dados reais. Não invente valores.
 - Antes de ações que alteram dados (mark_bill_paid, add_income, add_expense, snooze_bill, transfer_between_accounts), confira com search_debts ou get_accounts pra ter os IDs corretos.
 - Valores em reais (BRL). Datas no formato YYYY-MM-DD nas chamadas, mas formato humano (DD/MM/YYYY) nas respostas.
 - Seja conciso. Resuma resultados de tools — não devolva JSON cru.
 - Quando o usuário pedir uma ação destrutiva (apagar, marcar como pago, transferir), você chama a tool e o app pede confirmação humana antes de aplicar. Você não precisa pedir confirmação no texto.
 - Se uma tool falhar ou retornar vazio, explique de forma simples e sugira alternativas.`;
+}
+
+function addDaysISO(iso: string, days: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
 
 function nowISO(): string {
   return new Date().toISOString();
@@ -95,7 +125,7 @@ function newId(): string {
 }
 
 function buildHistoryForLLM(messages: ChatMessage[]): OllamaMessage[] {
-  const out: OllamaMessage[] = [{ role: 'system', content: SYSTEM_PROMPT }];
+  const out: OllamaMessage[] = [{ role: 'system', content: getSystemPrompt() }];
   for (const m of messages) {
     if (m.role === 'user') {
       out.push({ role: 'user', content: m.content ?? '' });
