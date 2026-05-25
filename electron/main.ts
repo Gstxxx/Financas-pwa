@@ -1,7 +1,19 @@
-import { app, BrowserWindow, ipcMain, shell, protocol, net, Tray, Menu, nativeImage } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  shell,
+  protocol,
+  net,
+  Tray,
+  Menu,
+  nativeImage,
+  Notification,
+} from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { initDb, kvLoadAll, kvSetRaw, kvDelete, kvReset, closeDb } from './db';
+import { initAutoUpdater } from './updater';
 
 const isDev = !app.isPackaged || process.env.ELECTRON_DEV === '1';
 const startedHidden = process.argv.includes('--hidden');
@@ -235,9 +247,42 @@ function registerIpc() {
   });
 
   ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized() ?? false);
+
+  // Windows toast for upcoming/overdue bills. Renderer pre-formats the
+  // strings (status labels, BRL totals) and dedupes via SENT_KEY storage.
+  ipcMain.handle(
+    'notify:show',
+    (_e, payload: { title: string; body: string; tag?: string }) => {
+      if (!Notification.isSupported()) return false;
+      const n = new Notification({
+        title: payload.title,
+        body: payload.body,
+        icon: getAppIconPath(),
+        silent: false,
+      });
+      n.on('click', () => {
+        if (!mainWindow) {
+          createWindow();
+          return;
+        }
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+      });
+      n.show();
+      return true;
+    }
+  );
 }
 
 app.whenReady().then(() => {
+  // Windows uses this to attribute toast notifications to our app — without
+  // it the Action Center shows "electron.app.Financas" and clicks won't
+  // re-launch the right shortcut.
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.financas.desktop');
+  }
+
   initDb();
   registerIpc();
 
@@ -249,6 +294,11 @@ app.whenReady().then(() => {
 
   createWindow();
   createTray();
+
+  initAutoUpdater({
+    getMainWindow: () => mainWindow,
+    iconPath: getAppIconPath(),
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

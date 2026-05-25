@@ -85,6 +85,54 @@ function statusLabel(daysAway: number): string {
 }
 
 /**
+ * Builds the title/body for a Windows toast. One bill → specific message;
+ * multiple bills → summary line plus the first few account names so the
+ * user can act without opening the app.
+ */
+export function formatDueToast(bills: DueBill[]): {
+  title: string;
+  body: string;
+  tag: string;
+} {
+  if (bills.length === 1) {
+    const b = bills[0]!;
+    const title =
+      b.daysAway < 0
+        ? 'Conta atrasada'
+        : b.daysAway === 0
+          ? 'Conta vence hoje'
+          : 'Conta vence amanhã';
+    return {
+      title,
+      body: `${b.debt.accountName} · ${fmtBRL(b.debt.installmentValue)} (${fmtDate(b.dueDate)})`,
+      tag: b.key,
+    };
+  }
+
+  const overdue = bills.filter((b) => b.daysAway < 0).length;
+  const today = bills.filter((b) => b.daysAway === 0).length;
+  const soon = bills.filter((b) => b.daysAway > 0).length;
+  const total = bills.reduce((sum, b) => sum + b.debt.installmentValue, 0);
+
+  const summary = [
+    overdue > 0 ? `${overdue} atrasada${overdue === 1 ? '' : 's'}` : null,
+    today > 0 ? `${today} hoje` : null,
+    soon > 0 ? `${soon} amanhã` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const names = bills.slice(0, 3).map((b) => b.debt.accountName);
+  const tail = bills.length > 3 ? ` +${bills.length - 3}` : '';
+
+  return {
+    title: `${bills.length} contas vencendo · ${fmtBRL(total)}`,
+    body: `${summary} — ${names.join(', ')}${tail}`,
+    tag: bills.map((b) => b.key).join('|'),
+  };
+}
+
+/**
  * Sends a single Discord embed listing the due bills. The webhook URL must
  * already be validated by the caller.
  */

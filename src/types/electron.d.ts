@@ -15,6 +15,7 @@ interface ElectronDesktopAPI {
   setAutoStart(enabled: boolean): Promise<boolean>;
   quit(): Promise<void>;
   openExternal(url: string): Promise<void>;
+  notify(payload: { title: string; body: string; tag?: string }): Promise<boolean>;
   platform: NodeJS.Platform;
 }
 
@@ -26,12 +27,29 @@ interface ElectronWindowAPI {
   onMaximizedChange(cb: (maximized: boolean) => void): () => void;
 }
 
+export type UpdateStatus =
+  | { state: 'idle' }
+  | { state: 'checking' }
+  | { state: 'available'; version: string }
+  | { state: 'not-available'; version: string }
+  | { state: 'downloading'; percent: number; bytesPerSecond: number }
+  | { state: 'downloaded'; version: string }
+  | { state: 'error'; message: string };
+
+interface ElectronUpdaterAPI {
+  check(): Promise<UpdateStatus>;
+  install(): Promise<boolean>;
+  getStatus(): Promise<UpdateStatus>;
+  onStatus(cb: (status: UpdateStatus) => void): () => void;
+}
+
 declare global {
   interface Window {
     electron?: {
       storage: ElectronStorageAPI;
       desktop: ElectronDesktopAPI;
       window: ElectronWindowAPI;
+      updater: ElectronUpdaterAPI;
     };
   }
 }

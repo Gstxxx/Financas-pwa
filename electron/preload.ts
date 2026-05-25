@@ -34,6 +34,8 @@ const desktop = {
     ipcRenderer.invoke('app:setAutoStart', enabled) as Promise<boolean>,
   quit: () => ipcRenderer.invoke('app:quit'),
   openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
+  notify: (payload: { title: string; body: string; tag?: string }) =>
+    ipcRenderer.invoke('notify:show', payload) as Promise<boolean>,
   platform: process.platform,
 };
 
@@ -51,7 +53,29 @@ const win = {
   },
 };
 
-const api = { storage, desktop, window: win } as const;
+type UpdateStatus =
+  | { state: 'idle' }
+  | { state: 'checking' }
+  | { state: 'available'; version: string }
+  | { state: 'not-available'; version: string }
+  | { state: 'downloading'; percent: number; bytesPerSecond: number }
+  | { state: 'downloaded'; version: string }
+  | { state: 'error'; message: string };
+
+const updater = {
+  check: () => ipcRenderer.invoke('update:check') as Promise<UpdateStatus>,
+  install: () => ipcRenderer.invoke('update:install') as Promise<boolean>,
+  getStatus: () => ipcRenderer.invoke('update:getStatus') as Promise<UpdateStatus>,
+  onStatus: (cb: (status: UpdateStatus) => void): (() => void) => {
+    const handler = (_e: unknown, status: UpdateStatus) => cb(status);
+    ipcRenderer.on('update:status', handler);
+    return () => {
+      ipcRenderer.off('update:status', handler);
+    };
+  },
+};
+
+const api = { storage, desktop, window: win, updater } as const;
 
 contextBridge.exposeInMainWorld('electron', api);
 
