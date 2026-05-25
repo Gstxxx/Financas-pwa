@@ -43,7 +43,9 @@ export default function ProfilePage() {
           padding: '16px 22px',
         }}
       >
-        <p style={{ margin: 0 }}>Dashboard Financeiro v2.0</p>
+        <p style={{ margin: 0 }}>
+          Financas v{process.env.NEXT_PUBLIC_APP_VERSION ?? '—'}
+        </p>
         <p style={{ margin: '4px 0 0' }}>
           Dados {Storage.persistent ? 'salvos localmente' : 'em modo demo'}
         </p>

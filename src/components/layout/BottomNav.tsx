@@ -20,6 +20,9 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/profile',  label: 'Perfil',     icon: 'gear' },
 ];
 
+// Baked at build time by next.config.mjs -> env.NEXT_PUBLIC_APP_VERSION.
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '';
+
 export function BottomNav() {
   const pathname = usePathname();
 
@@ -42,6 +45,11 @@ export function BottomNav() {
           );
         })}
       </div>
+      {APP_VERSION && (
+        <div className="tabbar-version" aria-label={`Versão ${APP_VERSION}`}>
+          v{APP_VERSION}
+        </div>
+      )}
     </nav>
   );
 }

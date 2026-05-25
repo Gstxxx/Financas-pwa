@@ -617,6 +617,25 @@ select.input {
     left: 188px;
     bottom: 28px;
   }
+  /* Version pin at the bottom of the sidebar rail. */
+  .tabbar-version {
+    margin-top: auto;
+    padding: 10px 12px 4px;
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+  }
+}
+/* On mobile (floating pill), the version pin would clutter the layout —
+   keep it hidden and only show on the sidebar via the media query above. */
+.tabbar-version {
+  display: none;
+}
+@media (min-width: 900px) {
+  .tabbar-version {
+    display: block;
+  }
 }
 
 /* ── Row (list rows in cards) ── */
