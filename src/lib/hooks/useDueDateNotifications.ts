@@ -3,33 +3,51 @@
 import { useEffect, useRef } from 'react';
 import { Storage, STORAGE_KEYS } from '@/lib/storage';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
-import { getBillsDueSoon, sendDueWebhook } from '@/lib/services/notifications';
+import {
+  getBillsDueSoon,
+  sendDueWebhook,
+  formatDueToast,
+  type DueBill,
+} from '@/lib/services/notifications';
 
-const SENT_KEY = 'finance_notified_bills';
+const SENT_WEBHOOK_KEY = 'finance_notified_bills';
+const SENT_TOAST_KEY = 'finance_notified_bills_toast';
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // re-check hourly while app is open
 
 type SentMap = Record<string, string>;
 
-function loadSent(): SentMap {
-  return (Storage.get<SentMap>(SENT_KEY) as SentMap | null) ?? {};
+function loadSent(key: string): SentMap {
+  return (Storage.get<SentMap>(key) as SentMap | null) ?? {};
 }
 
-function saveSent(map: SentMap): void {
+function saveSent(key: string, map: SentMap): void {
   // Prune entries older than 30 days so the map doesn't grow unbounded.
   const cutoff = Date.now() - 30 * 86_400_000;
   const pruned: SentMap = {};
   for (const [k, v] of Object.entries(map)) {
     if (new Date(v).getTime() >= cutoff) pruned[k] = v;
   }
-  Storage.set(SENT_KEY, pruned);
+  Storage.set(key, pruned);
+}
+
+function freshBills(bills: DueBill[], sent: SentMap): DueBill[] {
+  return bills.filter((b) => !sent[b.key]);
+}
+
+function stampSent(bills: DueBill[], sent: SentMap): SentMap {
+  const stamp = new Date().toISOString();
+  for (const b of bills) sent[b.key] = stamp;
+  return sent;
 }
 
 /**
- * Runs a due-date check on mount and then hourly while the app stays
- * open. No-op if the user hasn't configured a Discord webhook.
+ * Runs a due-date check on mount and then hourly while the app stays open.
  *
- * Designed to be mounted once at the layout level — multiple mounts would
- * just no-op against the same dedupe map.
+ * Two parallel channels: a Discord webhook (off unless configured) and the
+ * native Windows toast (auto-enabled inside Electron). They dedupe
+ * independently so the user can rely on either one.
+ *
+ * Designed to be mounted once at the layout level.
  */
 export function useDueDateNotifications() {
   const { isHydrated, debts, installments } = useFinanceData();
@@ -46,22 +64,35 @@ export function useDueDateNotifications() {
       if (now - lastRunRef.current < 30_000) return;
       lastRunRef.current = now;
 
-      const webhookUrl = Storage.get<string>(STORAGE_KEYS.DISCORD_WEBHOOK);
-      if (!webhookUrl || !webhookUrl.startsWith('https://')) return;
-
       const bills = getBillsDueSoon({ debts, installments }, 1);
       if (bills.length === 0) return;
 
-      const sent = loadSent();
-      const fresh = bills.filter((b) => !sent[b.key]);
-      if (fresh.length === 0) return;
+      // --- Windows toast (desktop only) -----------------------------------
+      const desktop = typeof window !== 'undefined' ? window.electron?.desktop : null;
+      if (desktop) {
+        const sent = loadSent(SENT_TOAST_KEY);
+        const fresh = freshBills(bills, sent);
+        if (fresh.length > 0) {
+          const payload = formatDueToast(fresh);
+          const ok = await desktop.notify(payload);
+          if (!cancelled && ok) {
+            saveSent(SENT_TOAST_KEY, stampSent(fresh, sent));
+          }
+        }
+      }
 
-      const ok = await sendDueWebhook(webhookUrl, fresh);
-      if (cancelled || !ok) return;
-
-      const stamp = new Date().toISOString();
-      for (const b of fresh) sent[b.key] = stamp;
-      saveSent(sent);
+      // --- Discord webhook (optional) -------------------------------------
+      const webhookUrl = Storage.get<string>(STORAGE_KEYS.DISCORD_WEBHOOK);
+      if (webhookUrl && webhookUrl.startsWith('https://')) {
+        const sent = loadSent(SENT_WEBHOOK_KEY);
+        const fresh = freshBills(bills, sent);
+        if (fresh.length > 0) {
+          const ok = await sendDueWebhook(webhookUrl, fresh);
+          if (!cancelled && ok) {
+            saveSent(SENT_WEBHOOK_KEY, stampSent(fresh, sent));
+          }
+        }
+      }
     };
 
     void run();
