@@ -39,6 +39,7 @@ export function useKeyboardShortcuts() {
         '6': '/analysis/',
         '7': '/stats/',
         '8': '/profile/',
+        '9': '/chat/',
       };
       if (NAV[key]) {
         e.preventDefault();

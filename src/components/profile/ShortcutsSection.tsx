@@ -9,6 +9,7 @@ const SHORTCUTS: { combo: string; label: string }[] = [
   { combo: 'Ctrl + 6', label: 'Análise' },
   { combo: 'Ctrl + 7', label: 'Estatísticas' },
   { combo: 'Ctrl + 8', label: 'Perfil' },
+  { combo: 'Ctrl + 9', label: 'Chat (IA)' },
   { combo: 'Ctrl + N', label: 'Nova conta' },
   { combo: 'Ctrl + G', label: 'Nova meta' },
   { combo: 'Ctrl + I', label: 'Novo lançamento' },

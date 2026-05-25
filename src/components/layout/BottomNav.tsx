@@ -17,6 +17,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/accounts', label: 'Carteiras',  icon: 'wallet' },
   { href: '/entities', label: 'Categorias', icon: 'folder' },
   { href: '/analysis', label: 'Análise',    icon: 'chart' },
+  { href: '/chat',     label: 'Chat',       icon: 'spark' },
   { href: '/profile',  label: 'Perfil',     icon: 'gear' },
 ];
 
