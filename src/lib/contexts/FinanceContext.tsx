@@ -696,6 +696,25 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
       };
     }
 
+    case 'PURGE_PLUGGY_INTERNAL': {
+      // We don't store categoryId on Incomes, so the retroactive cleanup
+      // has to rely on description heuristics. New imports use the
+      // categoryId-based filter in pluggySync.ts — this catches rows that
+      // came in before that filter existed.
+      const isInternal = (desc: string): boolean => {
+        const text = desc.toLowerCase();
+        if (text.includes('cofrinho')) return true;
+        if (text.includes('pagamento de fatura')) return true;
+        if (/\baporte\b/.test(text) && /\bcofrinho\b/.test(text)) return true;
+        if (/\bresgate\b/.test(text) && /\bcofrinho\b/.test(text)) return true;
+        return false;
+      };
+      const kept = state.incomes.filter(
+        (i) => !i.sourcePluggyId || !isInternal(i.description)
+      );
+      return { ...state, incomes: kept };
+    }
+
     case 'RESET_ALL':
       return { ...INITIAL_STATE, isHydrated: true };
 

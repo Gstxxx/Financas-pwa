@@ -251,6 +251,11 @@ export type FinanceAction =
         syncedAt: string;
       };
     }
+  /** Retroactive cleanup: removes Pluggy-imported Incomes whose
+   * description matches the same-person-transfer heuristic (Cofrinho
+   * aporte/resgate, pagamento de fatura, etc). Use when the user enabled
+   * the filter on a DB that already has noise from a pre-filter import. */
+  | { type: 'PURGE_PLUGGY_INTERNAL' }
   | { type: 'RESET_ALL' }
   | { type: 'IMPORT_DATA'; payload: Omit<FinanceState, 'isHydrated'> };
 

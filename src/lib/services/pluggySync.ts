@@ -18,6 +18,35 @@ import type {
 
 const HISTORY_DAYS = 90;
 
+/**
+ * Pluggy classifies movement between a user's own accounts/wallets under
+ * the "04" category tree:
+ *   04000000 — Same person transfer
+ *   04010000 — Same person transfer - CASH (PicPay Cofrinho aporte/resgate)
+ *   04020000 — Pagamento de fatura de cartão (own CC)
+ *   04030000 — Investimento próprio
+ *
+ * These are NOT real income or expense — they're just money moving between
+ * places the user owns. If we import them, every Cofrinho deposit shows as
+ * an expense AND a matching income, every CC invoice payment double-counts
+ * the spending that was already recorded as the card transactions, and
+ * stats become useless. Filtering by the "04" prefix removes the noise
+ * without dropping legitimate third-party transfers (which live under "05").
+ *
+ * Description fallback catches rows where Pluggy didn't tag a categoryId:
+ *   "Cofrinho", "Aporte ... Cofrinho", "Resgate ... Cofrinho",
+ *   "Pagamento de fatura"
+ */
+function isSamePersonTransfer(tx: PluggyTransactionInfo): boolean {
+  if (tx.categoryId && tx.categoryId.startsWith('04')) return true;
+  const text = `${tx.description ?? ''} ${tx.descriptionRaw ?? ''}`.toLowerCase();
+  if (text.includes('cofrinho')) return true;
+  if (text.includes('pagamento de fatura')) return true;
+  if (/\baporte\b/.test(text) && /\bcofrinho\b/.test(text)) return true;
+  if (/\bresgate\b/.test(text) && /\bcofrinho\b/.test(text)) return true;
+  return false;
+}
+
 function pad(n: number): string {
   return n.toString().padStart(2, '0');
 }
@@ -80,6 +109,10 @@ function normalizeItemStatus(
 export interface SyncResult {
   ok: boolean;
   fetched: number;
+  /** Internal transfers filtered out (Cofrinho aporte/resgate, CC invoice
+   * payment, etc). Surfaced so the UI can show "12 importadas, 4 internas
+   * ignoradas". */
+  skippedInternal: number;
   incomes: Income[];
   syncedAt: string;
   error?: string;
@@ -94,6 +127,7 @@ export async function syncConnection(
     return {
       ok: false,
       fetched: 0,
+      skippedInternal: 0,
       incomes: [],
       syncedAt: new Date().toISOString(),
       error: 'Pluggy só funciona no app desktop.',
@@ -109,7 +143,13 @@ export async function syncConnection(
 
     const accounts = await pluggy.listAccounts(pluggyItemId);
     if (accounts.length === 0) {
-      return { ok: true, fetched: 0, incomes: [], syncedAt: new Date().toISOString() };
+      return {
+        ok: true,
+        fetched: 0,
+        skippedInternal: 0,
+        incomes: [],
+        syncedAt: new Date().toISOString(),
+      };
     }
 
     const now = new Date();
@@ -120,15 +160,23 @@ export async function syncConnection(
 
     const incomes: Income[] = [];
     let fetchedTotal = 0;
+    let skippedInternal = 0;
     for (const acc of accounts) {
       const txs = await pluggy.listTransactions(acc.id, { from, to });
       fetchedTotal += txs.length;
-      for (const tx of txs) incomes.push(txToIncome(tx, connectionId));
+      for (const tx of txs) {
+        if (isSamePersonTransfer(tx)) {
+          skippedInternal++;
+          continue;
+        }
+        incomes.push(txToIncome(tx, connectionId));
+      }
     }
 
     return {
       ok: true,
       fetched: fetchedTotal,
+      skippedInternal,
       incomes,
       syncedAt: new Date().toISOString(),
     };
@@ -136,6 +184,7 @@ export async function syncConnection(
     return {
       ok: false,
       fetched: 0,
+      skippedInternal: 0,
       incomes: [],
       syncedAt: new Date().toISOString(),
       error: err instanceof Error ? err.message : String(err),
@@ -177,6 +226,8 @@ export interface FullSyncResult {
   error?: string;
   payload?: FullSyncPayload;
   fetchedTransactions: number;
+  /** Internal transfers filtered out — see SyncResult.skippedInternal. */
+  skippedInternal: number;
   accountCount: number;
 }
 
@@ -196,6 +247,7 @@ export async function fullSyncItem(
       ok: false,
       error: 'Pluggy só funciona no app desktop.',
       fetchedTransactions: 0,
+      skippedInternal: 0,
       accountCount: 0,
     };
   }
@@ -225,9 +277,14 @@ export async function fullSyncItem(
     }));
 
     const transactions: FullSyncTransaction[] = [];
+    let skippedInternal = 0;
     for (const acc of accounts) {
       const txs = await pluggy.listTransactions(acc.id, { from, to });
       for (const tx of txs) {
+        if (isSamePersonTransfer(tx)) {
+          skippedInternal++;
+          continue;
+        }
         transactions.push({
           sourcePluggyId: tx.id,
           pluggyAccountId: acc.id,
@@ -256,6 +313,7 @@ export async function fullSyncItem(
         syncedAt: new Date().toISOString(),
       },
       fetchedTransactions: transactions.length,
+      skippedInternal,
       accountCount: accounts.length,
     };
   } catch (err) {
@@ -263,6 +321,7 @@ export async function fullSyncItem(
       ok: false,
       error: err instanceof Error ? err.message : String(err),
       fetchedTransactions: 0,
+      skippedInternal: 0,
       accountCount: 0,
     };
   }

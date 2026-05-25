@@ -199,8 +199,10 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
       return;
     }
     dispatch({ type: 'IMPORT_PLUGGY_FULL', payload: res.payload });
+    const internalNote =
+      res.skippedInternal > 0 ? ` · ${res.skippedInternal} internas ignoradas` : '';
     onToast(
-      `${res.fetchedTransactions} transações · ${res.accountCount} carteiras atualizadas`
+      `${res.fetchedTransactions} transações · ${res.accountCount} carteiras atualizadas${internalNote}`
     );
   };
 
@@ -232,8 +234,8 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
 
   const importItemsFromSession = async (
     silent = false
-  ): Promise<{ items: number; accounts: number; transactions: number }> => {
-    const totals = { items: 0, accounts: 0, transactions: 0 };
+  ): Promise<{ items: number; accounts: number; transactions: number; skipped: number }> => {
+    const totals = { items: 0, accounts: 0, transactions: 0, skipped: 0 };
     if (!pluggy) return totals;
     setImportingItems(true);
     try {
@@ -251,13 +253,16 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
         totals.items += 1;
         totals.accounts += sync.accountCount;
         totals.transactions += sync.fetchedTransactions;
+        totals.skipped += sync.skippedInternal;
       }
       if (!silent) {
         if (totals.items === 0) {
           onToast('Nenhum banco pra importar');
         } else {
+          const internalNote =
+            totals.skipped > 0 ? ` · ${totals.skipped} internas ignoradas` : '';
           onToast(
-            `${totals.items} ${totals.items === 1 ? 'banco' : 'bancos'} · ${totals.accounts} carteiras · ${totals.transactions} transações`
+            `${totals.items} ${totals.items === 1 ? 'banco' : 'bancos'} · ${totals.accounts} carteiras · ${totals.transactions} transações${internalNote}`
           );
         }
       }
@@ -500,6 +505,49 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
               Remover sessão
             </Button>
           </div>
+        )}
+
+        {sessionInfo.hasSession && (
+          <div style={{ marginTop: 12, fontSize: 12, opacity: 0.65, lineHeight: 1.4 }}>
+            Transferências entre suas próprias contas (Cofrinho, pagamento de fatura,
+            PIX entre seus bancos) são ignoradas no import — não contam como receita ou
+            despesa. Use o botão abaixo se você já importou esse tipo de transação antes
+            do filtro existir.
+          </div>
+        )}
+        {sessionInfo.hasSession && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="mt-2"
+            onClick={() => {
+              const before = state.incomes.filter((i) => !!i.sourcePluggyId).length;
+              dispatch({ type: 'PURGE_PLUGGY_INTERNAL' });
+              // The reducer ran synchronously but `state` is a closure — we
+              // approximate the diff by re-reading after the next render.
+              // For the toast we look at what the reducer would have filtered.
+              const isInternal = (desc: string): boolean => {
+                const t = desc.toLowerCase();
+                if (t.includes('cofrinho')) return true;
+                if (t.includes('pagamento de fatura')) return true;
+                return false;
+              };
+              const removed = state.incomes.filter(
+                (i) => !!i.sourcePluggyId && isInternal(i.description)
+              ).length;
+              if (removed === 0) {
+                onToast(
+                  before === 0 ? 'Nenhum import Pluggy ainda' : 'Nada pra limpar'
+                );
+              } else {
+                onToast(
+                  `${removed} transferência${removed === 1 ? '' : 's'} interna${removed === 1 ? '' : 's'} removida${removed === 1 ? '' : 's'}`
+                );
+              }
+            }}
+          >
+            🧹 Limpar transferências internas já importadas
+          </Button>
         )}
 
         {sessionInfo.hasSession && showSessionForm && (
