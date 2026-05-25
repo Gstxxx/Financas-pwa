@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { FinanceState, FinanceAction, User, Debt, Installment, Entity, Income, Goal, Account, RecurringIncome, Transfer } from '@/lib/types';
+import { FinanceState, FinanceAction, User, Debt, Installment, Entity, Income, Goal, Account, RecurringIncome, Transfer, BankConnection } from '@/lib/types';
 import { Storage, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, hashHue } from '@/lib/utils';
 import { generateInstallments, isRecurringActiveForMonth } from '@/lib/services/installment';
@@ -49,6 +49,7 @@ const INITIAL_STATE: FinanceState = {
   accounts: [],
   recurringIncomes: [],
   transfers: [],
+  bankConnections: [],
   isHydrated: false,
 };
 
@@ -518,6 +519,65 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
       };
     }
 
+    case 'ADD_BANK_CONNECTION': {
+      const conn: BankConnection = {
+        ...action.payload,
+        id: generateId(),
+        hue: action.payload.hue ?? hashHue(action.payload.institutionName),
+        createdAt: new Date().toISOString(),
+      };
+      return { ...state, bankConnections: [...state.bankConnections, conn] };
+    }
+
+    case 'UPDATE_BANK_CONNECTION': {
+      const { id, ...updates } = action.payload;
+      return {
+        ...state,
+        bankConnections: state.bankConnections.map((c) =>
+          c.id === id ? { ...c, ...updates } : c
+        ),
+      };
+    }
+
+    case 'DELETE_BANK_CONNECTION': {
+      const { id, purgeIncomes } = action.payload;
+      return {
+        ...state,
+        bankConnections: state.bankConnections.filter((c) => c.id !== id),
+        incomes: purgeIncomes
+          ? state.incomes.filter((i) => i.sourceConnectionId !== id)
+          : state.incomes,
+      };
+    }
+
+    case 'IMPORT_PLUGGY_TRANSACTIONS': {
+      const { connectionId, incomes, lastSyncAt } = action.payload;
+      // Dedup against existing incomes by sourcePluggyId.
+      const seen = new Set(
+        state.incomes
+          .map((i) => i.sourcePluggyId)
+          .filter((id): id is string => !!id)
+      );
+      const fresh = incomes.filter(
+        (i) => !i.sourcePluggyId || !seen.has(i.sourcePluggyId)
+      );
+      return {
+        ...state,
+        incomes: [...state.incomes, ...fresh],
+        bankConnections: state.bankConnections.map((c) =>
+          c.id === connectionId
+            ? {
+                ...c,
+                lastSyncAt,
+                totalImported: (c.totalImported ?? 0) + fresh.length,
+                status: 'ok',
+                statusDetail: undefined,
+              }
+            : c
+        ),
+      };
+    }
+
     case 'RESET_ALL':
       return { ...INITIAL_STATE, isHydrated: true };
 
@@ -529,6 +589,7 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
         accounts: ensureAccountsMigration(importedAccounts, action.payload.user),
         recurringIncomes: action.payload.recurringIncomes ?? [],
         transfers: action.payload.transfers ?? [],
+        bankConnections: action.payload.bankConnections ?? [],
         isHydrated: true,
       };
     }
@@ -570,6 +631,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           accounts: ensureAccountsMigration([], migrated.user),
           recurringIncomes: [],
           transfers: [],
+          bankConnections: [],
         },
       });
       return;
@@ -593,6 +655,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     );
     const recurringIncomes = Storage.get<RecurringIncome[]>(STORAGE_KEYS.RECURRING_INCOMES) || [];
     const transfers = Storage.get<Transfer[]>(STORAGE_KEYS.TRANSFERS) || [];
+    const bankConnections = (Storage.get<BankConnection[]>(STORAGE_KEYS.BANK_CONNECTIONS) || []).map((c) => ({
+      ...c,
+      hue: c.hue ?? hashHue(c.institutionName),
+    }));
 
     // Auto-fill any missing Income rows that the recurring templates should
     // have generated while the app was closed.
@@ -612,6 +678,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         accounts,
         recurringIncomes: gen.recurring,
         transfers,
+        bankConnections,
       } as FinanceState,
     });
   }, []);
@@ -630,6 +697,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     Storage.set(STORAGE_KEYS.ACCOUNTS, state.accounts);
     Storage.set(STORAGE_KEYS.RECURRING_INCOMES, state.recurringIncomes);
     Storage.set(STORAGE_KEYS.TRANSFERS, state.transfers);
+    Storage.set(STORAGE_KEYS.BANK_CONNECTIONS, state.bankConnections);
   }, [state]);
 
   return (

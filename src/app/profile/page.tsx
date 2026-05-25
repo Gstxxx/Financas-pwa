@@ -9,6 +9,7 @@ import { BackupSection } from '@/components/profile/BackupSection';
 import { CsvImportSection } from '@/components/profile/CsvImportSection';
 import { PinSection } from '@/components/profile/PinSection';
 import { OllamaSection } from '@/components/profile/OllamaSection';
+import { OpenFinanceSection } from '@/components/profile/OpenFinanceSection';
 import { DesktopSection } from '@/components/profile/DesktopSection';
 import { ShortcutsSection } from '@/components/profile/ShortcutsSection';
 import { RecurringIncomeSection } from '@/components/profile/RecurringIncomeSection';
@@ -29,6 +30,7 @@ export default function ProfilePage() {
       <AppearanceSection />
       <PinSection onToast={toast} />
       <OllamaSection onToast={toast} />
+      <OpenFinanceSection onToast={toast} />
       <ExportSection onToast={toast} />
       <CsvImportSection onToast={toast} />
       <BackupSection onToast={toast} />

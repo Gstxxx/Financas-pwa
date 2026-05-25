@@ -136,4 +136,6 @@ export const STORAGE_KEYS = {
   INSIGHTS_DISMISSED: 'finance_insights_dismissed',
   OLLAMA_SETTINGS: 'finance_ollama',
   CHAT_HISTORY: 'finance_chat_history',
+  BANK_CONNECTIONS: 'finance_bank_connections',
+  PLUGGY_CREDENTIALS: 'finance_pluggy_credentials',
 } as const;

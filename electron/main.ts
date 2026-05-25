@@ -18,6 +18,18 @@ import { pathToFileURL } from 'node:url';
 import { initDb, kvLoadAll, kvSetRaw, kvDelete, kvReset, closeDb } from './db';
 import { initAutoUpdater } from './updater';
 import { initNotificationScheduler, getTraySummary } from './scheduler';
+import {
+  setCredentials as pluggySetCredentials,
+  clearCredentials as pluggyClearCredentials,
+  hasCredentials as pluggyHasCredentials,
+  testCredentials as pluggyTestCredentials,
+  createConnectToken as pluggyConnectToken,
+  getItem as pluggyGetItem,
+  refreshItem as pluggyRefreshItem,
+  deleteItem as pluggyDeleteItem,
+  listAccounts as pluggyListAccounts,
+  listTransactions as pluggyListTransactions,
+} from './pluggy';
 
 const isDev = !app.isPackaged || process.env.ELECTRON_DEV === '1';
 const startedHidden = process.argv.includes('--hidden');
@@ -296,6 +308,40 @@ function registerIpc() {
   );
 
   ipcMain.handle('tray:getSummary', () => getTraySummary());
+
+  // ── Pluggy / Open Finance ──────────────────────────────────────────
+  ipcMain.handle('pluggy:hasCredentials', () => pluggyHasCredentials());
+  ipcMain.handle(
+    'pluggy:setCredentials',
+    (_e, creds: { clientId: string; clientSecret: string }) => {
+      pluggySetCredentials(creds);
+      return true;
+    }
+  );
+  ipcMain.handle('pluggy:clearCredentials', () => {
+    pluggyClearCredentials();
+    return true;
+  });
+  ipcMain.handle('pluggy:testCredentials', async () => pluggyTestCredentials());
+  ipcMain.handle('pluggy:connectToken', async (_e, itemId?: string) =>
+    pluggyConnectToken(itemId)
+  );
+  ipcMain.handle('pluggy:getItem', async (_e, itemId: string) => pluggyGetItem(itemId));
+  ipcMain.handle('pluggy:refreshItem', async (_e, itemId: string) =>
+    pluggyRefreshItem(itemId)
+  );
+  ipcMain.handle('pluggy:deleteItem', async (_e, itemId: string) => {
+    await pluggyDeleteItem(itemId);
+    return true;
+  });
+  ipcMain.handle('pluggy:listAccounts', async (_e, itemId: string) =>
+    pluggyListAccounts(itemId)
+  );
+  ipcMain.handle(
+    'pluggy:listTransactions',
+    async (_e, accountId: string, options?: { from?: string; to?: string }) =>
+      pluggyListTransactions(accountId, options)
+  );
 
   // Frameless window controls — replace the native title bar buttons.
   ipcMain.handle('window:minimize', () => {
