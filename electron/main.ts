@@ -361,6 +361,88 @@ function registerIpc() {
   ipcMain.handle('pluggy:testAppSession', async () => pluggyTestAppSession());
   ipcMain.handle('pluggy:listItems', async () => pluggyListItems());
 
+  /**
+   * One-click connect flow. Opens an Electron BrowserWindow at the
+   * Pluggy dashboard, lets the user authenticate (Auth0 redirect chain
+   * works because cookies persist on the dedicated session partition),
+   * then sniffs the first request that goes out to my-api.pluggy.ai to
+   * extract the Bearer token. Saves it as the app session and closes
+   * the window.
+   *
+   * No credential ever passes through our renderer — it's only seen by
+   * the dashboard's own JS inside its window, then captured at the
+   * webRequest layer in main.
+   */
+  ipcMain.handle('pluggy:loginFlow', async () => {
+    return new Promise<{ ok: boolean; message?: string }>((resolve) => {
+      const win = new BrowserWindow({
+        width: 1024,
+        height: 760,
+        title: 'Pluggy · login',
+        parent: mainWindow ?? undefined,
+        modal: false,
+        backgroundColor: '#15171b',
+        autoHideMenuBar: true,
+        webPreferences: {
+          // Dedicated partition so cookies persist between flows but
+          // don't pollute the main app's session.
+          partition: 'persist:pluggy-login',
+          contextIsolation: true,
+          nodeIntegration: false,
+          sandbox: true,
+        },
+      });
+
+      let captured = false;
+      const filter = { urls: ['*://my-api.pluggy.ai/*'] };
+
+      win.webContents.session.webRequest.onBeforeSendHeaders(
+        filter,
+        (details, callback) => {
+          // Headers come keyed in a way that varies — accept either case.
+          const rawAuth =
+            details.requestHeaders['Authorization'] ??
+            details.requestHeaders['authorization'];
+          if (
+            !captured &&
+            typeof rawAuth === 'string' &&
+            rawAuth.startsWith('Bearer ')
+          ) {
+            captured = true;
+            pluggySetAppSession(rawAuth.slice(7));
+            // Close shortly after so the in-flight request still completes.
+            setTimeout(() => {
+              if (!win.isDestroyed()) win.close();
+            }, 300);
+            resolve({ ok: true });
+          }
+          callback({ requestHeaders: details.requestHeaders });
+        }
+      );
+
+      // 5min hard cap so a stalled login doesn't leave the window
+      // floating forever.
+      const timer = setTimeout(
+        () => {
+          if (!captured && !win.isDestroyed()) {
+            win.close();
+            resolve({ ok: false, message: 'Tempo esgotado (5 minutos)' });
+          }
+        },
+        5 * 60 * 1000
+      );
+
+      win.on('closed', () => {
+        clearTimeout(timer);
+        if (!captured) {
+          resolve({ ok: false, message: 'Janela fechada antes do login' });
+        }
+      });
+
+      win.loadURL('https://meu.pluggy.ai/cash');
+    });
+  });
+
   // Frameless window controls — replace the native title bar buttons.
   ipcMain.handle('window:minimize', () => {
     mainWindow?.minimize();
