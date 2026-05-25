@@ -402,6 +402,35 @@ function registerIpc() {
       let captured = false;
       const filter = { urls: ['*://my-api.pluggy.ai/*'] };
 
+      // Block known third-party trackers that meu.pluggy.ai loads
+      // (Segment, Google Analytics, FullStory, Hotjar, etc). They don't
+      // touch our data — they only watch what the user clicks on the
+      // Pluggy dashboard — but blocking them is cheap, makes the login
+      // window load faster, and avoids contributing telemetry that the
+      // user didn't opt into when they just wanted to authenticate.
+      const trackerHosts = [
+        '*://cdn.segment.com/*',
+        '*://api.segment.io/*',
+        '*://*.segment.io/*',
+        '*://www.google-analytics.com/*',
+        '*://www.googletagmanager.com/*',
+        '*://*.google-analytics.com/*',
+        '*://*.googletagmanager.com/*',
+        '*://*.hotjar.com/*',
+        '*://*.fullstory.com/*',
+        '*://*.intercom.io/*',
+        '*://*.intercomcdn.com/*',
+        '*://*.mixpanel.com/*',
+        '*://*.amplitude.com/*',
+        '*://*.posthog.com/*',
+        '*://*.sentry.io/*',
+        '*://*.datadoghq.com/*',
+      ];
+      win.webContents.session.webRequest.onBeforeRequest(
+        { urls: trackerHosts },
+        (_details, callback) => callback({ cancel: true })
+      );
+
       win.webContents.session.webRequest.onBeforeSendHeaders(
         filter,
         (details, callback) => {
