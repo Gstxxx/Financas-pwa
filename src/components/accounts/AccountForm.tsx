@@ -17,7 +17,7 @@ const TYPE_OPTIONS: { value: AccountType; label: string; hint: string }[] = [
   { value: 'checking', label: 'Conta corrente', hint: 'Banco, conta-salário' },
   { value: 'savings', label: 'Poupança', hint: 'Reserva' },
   { value: 'cash', label: 'Dinheiro', hint: 'Carteira física' },
-  { value: 'credit_card', label: 'Cartão', hint: 'Fatura aberta (em breve)' },
+  { value: 'credit_card', label: 'Cartão de crédito', hint: 'Saldo = fatura aberta' },
 ];
 
 export function AccountForm({ onClose, onSuccess, initialAccount }: AccountFormProps) {
@@ -33,6 +33,13 @@ export function AccountForm({ onClose, onSuccess, initialAccount }: AccountFormP
   const [hue, setHue] = useState<number>(
     initialAccount?.hue ?? hashHue(initialAccount?.name ?? '')
   );
+  const [closingDay, setClosingDay] = useState(String(initialAccount?.closingDay ?? 1));
+  const [dueDay, setDueDay] = useState(String(initialAccount?.dueDay ?? 10));
+  const [creditLimit, setCreditLimit] = useState(
+    initialAccount?.creditLimit
+      ? initialAccount.creditLimit.toFixed(2).replace('.', ',')
+      : ''
+  );
 
   const previewHue = useMemo(() => hue || hashHue(name), [hue, name]);
 
@@ -40,6 +47,14 @@ export function AccountForm({ onClose, onSuccess, initialAccount }: AccountFormP
     e.preventDefault();
     if (!name.trim()) return;
     const balanceValue = parseMoney(balance);
+    const ccFields =
+      type === 'credit_card'
+        ? {
+            closingDay: Math.max(1, Math.min(28, Number(closingDay) || 1)),
+            dueDay: Math.max(1, Math.min(31, Number(dueDay) || 1)),
+            creditLimit: parseMoney(creditLimit) || undefined,
+          }
+        : { closingDay: undefined, dueDay: undefined, creditLimit: undefined };
     if (isEdit && initialAccount) {
       dispatch({
         type: 'UPDATE_ACCOUNT',
@@ -49,6 +64,7 @@ export function AccountForm({ onClose, onSuccess, initialAccount }: AccountFormP
           type,
           currentBalance: balanceValue,
           hue,
+          ...ccFields,
         },
       });
     } else {
@@ -59,6 +75,7 @@ export function AccountForm({ onClose, onSuccess, initialAccount }: AccountFormP
           type,
           currentBalance: balanceValue,
           hue,
+          ...ccFields,
         },
       });
     }
@@ -129,13 +146,61 @@ export function AccountForm({ onClose, onSuccess, initialAccount }: AccountFormP
       </div>
 
       <Input
-        label="Saldo atual (R$)"
+        label={type === 'credit_card' ? 'Fatura aberta (R$)' : 'Saldo atual (R$)'}
         type="text"
         inputMode="decimal"
         value={balance}
         onChange={(e) => setBalance(fmtMoneyInput(e.target.value))}
         placeholder="0,00"
       />
+
+      {type === 'credit_card' && (
+        <div style={{ marginBottom: 18 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 10,
+              marginBottom: 4,
+            }}
+          >
+            <Input
+              label="Fecha dia"
+              type="number"
+              min={1}
+              max={28}
+              value={closingDay}
+              onChange={(e) => setClosingDay(e.target.value)}
+            />
+            <Input
+              label="Vence dia"
+              type="number"
+              min={1}
+              max={31}
+              value={dueDay}
+              onChange={(e) => setDueDay(e.target.value)}
+            />
+          </div>
+          <Input
+            label="Limite total (R$, opcional)"
+            type="text"
+            inputMode="decimal"
+            value={creditLimit}
+            onChange={(e) => setCreditLimit(fmtMoneyInput(e.target.value))}
+            placeholder="0,00"
+          />
+          <p
+            style={{
+              fontSize: 11,
+              color: 'var(--ink-faint)',
+              marginTop: -4,
+            }}
+          >
+            Por enquanto a fatura é atualizada manualmente. Lançamentos
+            automáticos de compras na fatura chegam em uma próxima atualização.
+          </p>
+        </div>
+      )}
 
       <div style={{ marginBottom: 16 }}>
         <label className="field-label">Cor</label>

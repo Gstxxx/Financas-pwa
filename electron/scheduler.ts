@@ -261,6 +261,24 @@ export function initNotificationScheduler(deps: SchedulerDeps): void {
   });
 }
 
+/**
+ * Snapshot for the tray menu: how many bills are due in the next 7 days
+ * and their total. Reads directly from the KV store so it always reflects
+ * the latest persisted state, even if the renderer is unloaded.
+ */
+export function getTraySummary(): { count: number; total: number } {
+  try {
+    const debts = readJson<Debt[]>(KEY_DEBTS) ?? [];
+    const installments = readJson<Installment[]>(KEY_INSTALLMENTS) ?? [];
+    const snoozes = readJson<Record<string, string>>(KEY_SNOOZES) ?? {};
+    const bills = getBillsDueSoon(debts, installments, snoozes, 7);
+    const total = bills.reduce((s, b) => s + b.debt.installmentValue, 0);
+    return { count: bills.length, total };
+  } catch {
+    return { count: 0, total: 0 };
+  }
+}
+
 // Exposed for tests/debug. Not currently called anywhere else.
 export const __test__ = {
   diffDaysFromToday,

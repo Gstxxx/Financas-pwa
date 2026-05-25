@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import Link from 'next/link';
 import { Container } from '@/components/layout/Container';
 import { PageHead } from '@/components/ui/PageHead';
 import { AdaptiveFab } from '@/components/layout/AdaptiveFab';
@@ -88,6 +89,29 @@ function DebtsPageInner() {
         </div>
 
         <DebtList sort={sort} />
+
+        <div style={{ padding: '0 22px 18px' }}>
+          <Link
+            href="/simulator"
+            className="card-flat"
+            style={{
+              padding: '14px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              textDecoration: 'none',
+              color: 'inherit',
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 500 }}>Simular quitação</div>
+              <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 2 }}>
+                Quanto antes você termina pagando R$X extra/mês
+              </div>
+            </div>
+            <span style={{ color: 'var(--ink-mute)' }}>→</span>
+          </Link>
+        </div>
       </Container>
 
       <AdaptiveFab onAction={() => setShowForm(true)} />

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { FinanceState, FinanceAction, User, Debt, Installment, Entity, Income, Goal, Account } from '@/lib/types';
+import { FinanceState, FinanceAction, User, Debt, Installment, Entity, Income, Goal, Account, RecurringIncome, Transfer } from '@/lib/types';
 import { Storage, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, hashHue } from '@/lib/utils';
 import { generateInstallments, isRecurringActiveForMonth } from '@/lib/services/installment';
@@ -47,8 +47,86 @@ const INITIAL_STATE: FinanceState = {
   incomes: [],
   snoozes: {},
   accounts: [],
+  recurringIncomes: [],
+  transfers: [],
   isHydrated: false,
 };
+
+function monthKey(month: number, year: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+/**
+ * Materialize Income rows for each active RecurringIncome up to the current
+ * month. Idempotent — skips months already covered (sourceRecurringId match
+ * or lastGeneratedMonth >= target).
+ */
+function generateMissingRecurringIncomes(
+  recurring: RecurringIncome[],
+  incomes: Income[]
+): { incomes: Income[]; recurring: RecurringIncome[]; created: number } {
+  const now = new Date();
+  const curMonth = now.getMonth() + 1;
+  const curYear = now.getFullYear();
+  const nowISO = now.toISOString();
+
+  const newIncomes: Income[] = [];
+  let created = 0;
+
+  const updatedRecurring = recurring.map((r) => {
+    if (!r.isActive) return r;
+
+    // Walk month-by-month from startMonth/startYear to current.
+    let m = r.startMonth;
+    let y = r.startYear;
+    let lastGenerated = r.lastGeneratedMonth ?? '';
+    const guard = 12 * 5; // 5 years of catch-up max
+    let steps = 0;
+
+    while ((y < curYear || (y === curYear && m <= curMonth)) && steps < guard) {
+      const key = monthKey(m, y);
+      const alreadyPresent =
+        incomes.some(
+          (inc) => inc.sourceRecurringId === r.id && inc.date.startsWith(key)
+        ) ||
+        newIncomes.some(
+          (inc) => inc.sourceRecurringId === r.id && inc.date.startsWith(key)
+        );
+      if (!alreadyPresent && key > lastGenerated) {
+        // Use min(dueDay, daysInMonth) for safety.
+        const daysInMonth = new Date(y, m, 0).getDate();
+        const day = Math.min(r.dueDay, daysInMonth);
+        newIncomes.push({
+          id: `${r.id}-${key}`,
+          description: r.name,
+          amount: r.amount,
+          date: `${key}-${String(day).padStart(2, '0')}`,
+          direction: 'entrada',
+          sourceRecurringId: r.id,
+          createdAt: nowISO,
+        });
+        created++;
+        lastGenerated = key;
+      }
+      m++;
+      if (m > 12) {
+        m = 1;
+        y++;
+      }
+      steps++;
+    }
+
+    return lastGenerated !== r.lastGeneratedMonth
+      ? { ...r, lastGeneratedMonth: lastGenerated }
+      : r;
+  });
+
+  return {
+    incomes: newIncomes.length > 0 ? [...incomes, ...newIncomes] : incomes,
+    recurring: updatedRecurring,
+    created,
+  };
+}
 
 /**
  * v1→v2 migration: if there are no accounts yet, create a "Conta principal"
@@ -348,6 +426,98 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
       return { ...state, accounts: state.accounts.filter((a) => a.id !== action.payload) };
     }
 
+    case 'ADD_RECURRING_INCOME': {
+      const r: RecurringIncome = {
+        ...action.payload,
+        id: generateId(),
+        createdAt: new Date().toISOString(),
+      };
+      const next = generateMissingRecurringIncomes(
+        [...state.recurringIncomes, r],
+        state.incomes
+      );
+      return {
+        ...state,
+        recurringIncomes: next.recurring,
+        incomes: next.incomes,
+      };
+    }
+
+    case 'UPDATE_RECURRING_INCOME': {
+      const { id, ...updates } = action.payload;
+      const recurringIncomes = state.recurringIncomes.map((r) =>
+        r.id === id ? { ...r, ...updates } : r
+      );
+      return { ...state, recurringIncomes };
+    }
+
+    case 'DELETE_RECURRING_INCOME': {
+      const id = action.payload;
+      // Keep already-materialized Incomes — only nuke the template.
+      return {
+        ...state,
+        recurringIncomes: state.recurringIncomes.filter((r) => r.id !== id),
+      };
+    }
+
+    case 'GENERATE_RECURRING_INCOMES': {
+      const next = generateMissingRecurringIncomes(state.recurringIncomes, state.incomes);
+      if (next.created === 0) return state;
+      return { ...state, incomes: next.incomes, recurringIncomes: next.recurring };
+    }
+
+    case 'ADD_TRANSFER': {
+      const transfer: Transfer = {
+        ...action.payload,
+        id: generateId(),
+        createdAt: new Date().toISOString(),
+      };
+      // Update both account balances atomically.
+      const accounts = state.accounts.map((a) => {
+        if (a.id === transfer.fromAccountId)
+          return { ...a, currentBalance: (a.currentBalance || 0) - transfer.amount };
+        if (a.id === transfer.toAccountId)
+          return { ...a, currentBalance: (a.currentBalance || 0) + transfer.amount };
+        return a;
+      });
+      // Mirror to user.currentBalance if the primary was touched.
+      const primary = accounts.find((a) => a.isPrimary);
+      const user =
+        primary && primary.currentBalance !== state.user.currentBalance
+          ? { ...state.user, currentBalance: primary.currentBalance }
+          : state.user;
+      return {
+        ...state,
+        transfers: [...state.transfers, transfer],
+        accounts,
+        user,
+      };
+    }
+
+    case 'DELETE_TRANSFER': {
+      const tr = state.transfers.find((t) => t.id === action.payload);
+      if (!tr) return state;
+      // Reverse the balance impact.
+      const accounts = state.accounts.map((a) => {
+        if (a.id === tr.fromAccountId)
+          return { ...a, currentBalance: (a.currentBalance || 0) + tr.amount };
+        if (a.id === tr.toAccountId)
+          return { ...a, currentBalance: (a.currentBalance || 0) - tr.amount };
+        return a;
+      });
+      const primary = accounts.find((a) => a.isPrimary);
+      const user =
+        primary && primary.currentBalance !== state.user.currentBalance
+          ? { ...state.user, currentBalance: primary.currentBalance }
+          : state.user;
+      return {
+        ...state,
+        transfers: state.transfers.filter((t) => t.id !== action.payload),
+        accounts,
+        user,
+      };
+    }
+
     case 'RESET_ALL':
       return { ...INITIAL_STATE, isHydrated: true };
 
@@ -357,6 +527,8 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
         ...action.payload,
         snoozes: action.payload.snoozes ?? {},
         accounts: ensureAccountsMigration(importedAccounts, action.payload.user),
+        recurringIncomes: action.payload.recurringIncomes ?? [],
+        transfers: action.payload.transfers ?? [],
         isHydrated: true,
       };
     }
@@ -396,6 +568,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           incomes: [],
           snoozes: {},
           accounts: ensureAccountsMigration([], migrated.user),
+          recurringIncomes: [],
+          transfers: [],
         },
       });
       return;
@@ -417,10 +591,28 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       (Storage.get<Account[]>(STORAGE_KEYS.ACCOUNTS) || []).map(ensureHue),
       user
     );
+    const recurringIncomes = Storage.get<RecurringIncome[]>(STORAGE_KEYS.RECURRING_INCOMES) || [];
+    const transfers = Storage.get<Transfer[]>(STORAGE_KEYS.TRANSFERS) || [];
+
+    // Auto-fill any missing Income rows that the recurring templates should
+    // have generated while the app was closed.
+    const gen = generateMissingRecurringIncomes(recurringIncomes, incomes);
 
     dispatch({
       type: 'HYDRATE',
-      payload: { user, entities, debts, installments, budgets, goals, incomes, snoozes, accounts } as FinanceState,
+      payload: {
+        user,
+        entities,
+        debts,
+        installments,
+        budgets,
+        goals,
+        incomes: gen.incomes,
+        snoozes,
+        accounts,
+        recurringIncomes: gen.recurring,
+        transfers,
+      } as FinanceState,
     });
   }, []);
 
@@ -436,6 +628,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     Storage.set(STORAGE_KEYS.INCOMES, state.incomes);
     Storage.set(STORAGE_KEYS.SNOOZES, state.snoozes);
     Storage.set(STORAGE_KEYS.ACCOUNTS, state.accounts);
+    Storage.set(STORAGE_KEYS.RECURRING_INCOMES, state.recurringIncomes);
+    Storage.set(STORAGE_KEYS.TRANSFERS, state.transfers);
   }, [state]);
 
   return (

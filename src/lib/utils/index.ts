@@ -23,6 +23,26 @@ export function getInitialGlyph(name: string | undefined | null): {
   return { value: isEmoji ? first : first.toUpperCase(), isEmoji };
 }
 
+/** When an entity has an explicit `icon` (emoji), prefer it over the
+ * first-letter fallback. */
+export function getEntityGlyph(entity: { name: string; icon?: string }): {
+  value: string;
+  isEmoji: boolean;
+} {
+  if (entity.icon && entity.icon.trim()) {
+    return { value: entity.icon.trim(), isEmoji: true };
+  }
+  return getInitialGlyph(entity.name);
+}
+
+/** Pre-baked palette of common category icons. The picker shows these as
+ * quick choices; users can also type a custom emoji. */
+export const ENTITY_ICONS: string[] = [
+  '🏠', '🍔', '🛒', '🚗', '⛽', '💊', '🎬', '👕', '✈️',
+  '📚', '💡', '📱', '🐾', '🎁', '💼', '🎓', '🏥', '🏦',
+  '💳', '💰',
+];
+
 // Currency formatting
 export function fmtBRL(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

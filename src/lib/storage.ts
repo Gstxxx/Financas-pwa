@@ -129,4 +129,9 @@ export const STORAGE_KEYS = {
   SNOOZES: 'finance_snoozes',
   ANALYSIS_FILTERS: 'finance_analysis_filters',
   ACCOUNTS: 'finance_accounts',
+  RECURRING_INCOMES: 'finance_recurring_incomes',
+  TRANSFERS: 'finance_transfers',
+  PIN_HASH: 'finance_pin_hash',
+  BACKUP_FOLDER: 'finance_backup_folder',
+  INSIGHTS_DISMISSED: 'finance_insights_dismissed',
 } as const;

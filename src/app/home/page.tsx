@@ -6,6 +6,7 @@ import { PageHead } from '@/components/ui/PageHead';
 import { AdaptiveFab } from '@/components/layout/AdaptiveFab';
 import { HeroBalance } from '@/components/home/HeroBalance';
 import { AccountsStrip } from '@/components/home/AccountsStrip';
+import { InsightsCard } from '@/components/home/InsightsCard';
 import { StatsGrid } from '@/components/home/StatsGrid';
 import { QuickActions } from '@/components/home/QuickActions';
 import { UpcomingBills } from '@/components/home/UpcomingBills';
@@ -48,6 +49,7 @@ function HomePageInner() {
           <div className="home-col">
             <HeroBalance />
             <AccountsStrip />
+            <InsightsCard />
             <StatsGrid />
             <QuickActions />
           </div>
