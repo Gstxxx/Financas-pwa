@@ -16,6 +16,7 @@ const TYPE_LABEL: Record<AccountType, string> = {
   savings: 'Poupança',
   cash: 'Dinheiro',
   credit_card: 'Cartão de crédito',
+  investment: 'Investimento',
 };
 
 export function AccountList() {

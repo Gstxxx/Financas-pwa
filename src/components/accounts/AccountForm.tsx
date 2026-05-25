@@ -18,6 +18,7 @@ const TYPE_OPTIONS: { value: AccountType; label: string; hint: string }[] = [
   { value: 'savings', label: 'Poupança', hint: 'Reserva' },
   { value: 'cash', label: 'Dinheiro', hint: 'Carteira física' },
   { value: 'credit_card', label: 'Cartão de crédito', hint: 'Saldo = fatura aberta' },
+  { value: 'investment', label: 'Investimento', hint: 'Tesouro, FII, CDB, ação' },
 ];
 
 export function AccountForm({ onClose, onSuccess, initialAccount }: AccountFormProps) {

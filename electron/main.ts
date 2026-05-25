@@ -29,6 +29,7 @@ import {
   deleteItem as pluggyDeleteItem,
   listAccounts as pluggyListAccounts,
   listTransactions as pluggyListTransactions,
+  listInvestments as pluggyListInvestments,
   setAppSession as pluggySetAppSession,
   clearAppSession as pluggyClearAppSession,
   getAppSessionInfo as pluggyGetAppSessionInfo,
@@ -346,6 +347,9 @@ function registerIpc() {
     'pluggy:listTransactions',
     async (_e, accountId: string, options?: { from?: string; to?: string }) =>
       pluggyListTransactions(accountId, options)
+  );
+  ipcMain.handle('pluggy:listInvestments', async (_e, itemId: string) =>
+    pluggyListInvestments(itemId)
   );
 
   // App-session mode (dashboard JWT)

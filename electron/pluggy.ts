@@ -386,3 +386,46 @@ export async function listTransactions(
   );
   return data.results ?? [];
 }
+
+// ─── Investments ───────────────────────────────────────────────────
+// Pluggy returns investments via a separate endpoint, not via /accounts.
+// Each investment is a single holding (Tesouro, FII, CDB, action, etc).
+// The fields we care about are: id, name, balance (current market value).
+
+export interface PluggyInvestment {
+  id: string;
+  itemId: string;
+  /** Pluggy's investment classification:
+   *   FIXED_INCOME | EQUITY | MUTUAL_FUND | ETF | SECURITY | OTHER */
+  type?: string;
+  /** Finer-grained breakdown — e.g. TREASURY, CDB, LCI, STOCK, FII. */
+  subtype?: string;
+  /** User-facing label, e.g. "Tesouro Selic 2029". */
+  name?: string;
+  /** Owning institution name when present, e.g. "Banco Inter". */
+  issuer?: string;
+  /** Current market value in BRL. This is what we display as the
+   * account balance. */
+  balance?: number;
+  /** Original amount invested. Diff between balance and amount =
+   * profit/loss. */
+  amount?: number;
+  /** Total appreciation since acquisition. */
+  amountProfit?: number;
+  quantity?: number;
+  /** Per-unit price at last update. */
+  value?: number;
+  currencyCode?: string;
+  rate?: number;
+  rateType?: string;
+  dueDate?: string;
+  issueDate?: string;
+  date?: string;
+}
+
+export async function listInvestments(itemId: string): Promise<PluggyInvestment[]> {
+  const data = await authedFetch<{ results: PluggyInvestment[] }>(
+    `/investments?itemId=${encodeURIComponent(itemId)}`
+  );
+  return data.results ?? [];
+}

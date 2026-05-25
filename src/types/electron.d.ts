@@ -93,6 +93,29 @@ export interface PluggyTransactionInfo {
   accountId: string;
 }
 
+/** A single holding returned by /investments?itemId=. Each row is one
+ * Tesouro/CDB/FII/ação — its `balance` is the current market value in BRL
+ * which is what we surface as the in-app account balance. */
+export interface PluggyInvestmentInfo {
+  id: string;
+  itemId: string;
+  type?: string;
+  subtype?: string;
+  name?: string;
+  issuer?: string;
+  balance?: number;
+  amount?: number;
+  amountProfit?: number;
+  quantity?: number;
+  value?: number;
+  currencyCode?: string;
+  rate?: number;
+  rateType?: string;
+  dueDate?: string;
+  issueDate?: string;
+  date?: string;
+}
+
 export interface PluggyAppSessionInfo {
   hasSession: boolean;
   email?: string;
@@ -115,6 +138,7 @@ interface ElectronPluggyAPI {
     accountId: string,
     options?: { from?: string; to?: string }
   ): Promise<PluggyTransactionInfo[]>;
+  listInvestments(itemId: string): Promise<PluggyInvestmentInfo[]>;
   // App-session (dashboard JWT) mode
   setAppSession(token: string): Promise<boolean>;
   clearAppSession(): Promise<boolean>;

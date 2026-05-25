@@ -58,10 +58,12 @@ export interface Goal {
   createdAt: string;
 }
 
-/** Account type — checking, savings, cash, or credit card. Credit cards
- * track a *negative* current balance (the open invoice). Future PRs will
- * add closingDay/dueDay/creditLimit when CC handling lands. */
-export type AccountType = 'checking' | 'savings' | 'cash' | 'credit_card';
+/** Account type — checking, savings, cash, credit card, or investment.
+ * Credit cards track a *negative* current balance (the open invoice).
+ * Investments are illiquid holdings (Tesouro, FIIs, CDB, ações) imported
+ * from Pluggy's /investments endpoint — currentBalance is the current
+ * market value. */
+export type AccountType = 'checking' | 'savings' | 'cash' | 'credit_card' | 'investment';
 
 export interface Account {
   id: string;

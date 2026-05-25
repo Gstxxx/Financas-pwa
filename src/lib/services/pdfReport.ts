@@ -248,6 +248,8 @@ function labelType(t: string): string {
       return 'Dinheiro';
     case 'credit_card':
       return 'Cartão';
+    case 'investment':
+      return 'Investimento';
     default:
       return t;
   }

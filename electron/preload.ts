@@ -80,6 +80,8 @@ const pluggy = {
     ipcRenderer.invoke('pluggy:listTransactions', accountId, options) as Promise<
       unknown[]
     >,
+  listInvestments: (itemId: string) =>
+    ipcRenderer.invoke('pluggy:listInvestments', itemId) as Promise<unknown[]>,
   setAppSession: (token: string) =>
     ipcRenderer.invoke('pluggy:setAppSession', token) as Promise<boolean>,
   clearAppSession: () =>

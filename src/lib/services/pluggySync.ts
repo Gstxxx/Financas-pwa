@@ -12,6 +12,7 @@
 import type { AccountType, Income, IncomeDirection } from '@/lib/types';
 import type {
   PluggyAccountInfo,
+  PluggyInvestmentInfo,
   PluggyItemInfo,
   PluggyTransactionInfo,
 } from '@/types/electron';
@@ -85,6 +86,22 @@ function accountDisplayName(pa: PluggyAccountInfo, institutionName?: string): st
   // ("Conta Nubank"). Skip the prefix when that's the case.
   if (base.toLowerCase().includes(institutionName.toLowerCase())) return base;
   return `${institutionName} · ${base}`;
+}
+
+/** Investments don't have marketingName, but they DO have name (security
+ * name) + sometimes issuer (institution). We build a label like:
+ *   "Tesouro Selic 2029 (Banco Inter)"
+ * falling back to a generic when the connector leaves name blank. */
+function investmentDisplayName(inv: PluggyInvestmentInfo, institutionName?: string): string {
+  const name = inv.name?.trim();
+  const issuer = inv.issuer?.trim() || institutionName;
+  if (name && issuer && !name.toLowerCase().includes(issuer.toLowerCase())) {
+    return `${name} (${issuer})`;
+  }
+  if (name) return name;
+  // Without a name, prefer subtype (TREASURY, CDB, FII, STOCK) over type.
+  const fallback = inv.subtype || inv.type || 'Investimento';
+  return issuer ? `${fallback} (${issuer})` : fallback;
 }
 
 function normalizeItemStatus(
@@ -275,6 +292,27 @@ export async function fullSyncItem(
       type: mapPluggyAccountType(a.type, a.subtype),
       balance: a.balance ?? 0,
     }));
+
+    // Investments live behind a separate endpoint. Each holding (Tesouro,
+    // FII, CDB, ação) becomes its own Account with type='investment' and
+    // balance = current market value. We don't pull investment-level
+    // transactions yet — most users care about the total invested + last
+    // appreciation, which `balance` already gives us. Best-effort: some
+    // connectors don't expose /investments and 403 instead of 200-empty.
+    try {
+      const investments = await pluggy.listInvestments(pluggyItemId);
+      for (const inv of investments) {
+        const label = investmentDisplayName(inv, institutionName);
+        mappedAccounts.push({
+          pluggyAccountId: `inv-${inv.id}`,
+          name: label,
+          type: 'investment',
+          balance: inv.balance ?? inv.amount ?? 0,
+        });
+      }
+    } catch {
+      // No investments / connector doesn't support it / 403 — silently skip.
+    }
 
     const transactions: FullSyncTransaction[] = [];
     let skippedInternal = 0;
