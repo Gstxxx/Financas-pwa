@@ -83,6 +83,12 @@ export interface Account {
   dueDay?: number;
   /** Total credit limit (R$). */
   creditLimit?: number;
+  // --- Pluggy-imported accounts only ---
+  /** Pluggy account id — used as dedup key on every sync. */
+  sourcePluggyAccountId?: string;
+  /** FK to the BankConnection this account belongs to. Lets us purge
+   * accounts when the user disconnects a bank. */
+  sourceConnectionId?: string;
   createdAt: string;
 }
 
@@ -216,6 +222,34 @@ export type FinanceAction =
   | {
       type: 'IMPORT_PLUGGY_TRANSACTIONS';
       payload: { connectionId: string; incomes: Income[]; lastSyncAt: string };
+    }
+  | {
+      /** Combined create-or-update for a Pluggy item: ensures the
+       * BankConnection exists, materializes one Account per Pluggy
+       * account (dedup by sourcePluggyAccountId), then attaches
+       * transactions as Income rows pointing at those accounts. Replaces
+       * 3 separate dispatches that had ordering / id-handoff issues. */
+      type: 'IMPORT_PLUGGY_FULL';
+      payload: {
+        connection: Omit<BankConnection, 'id' | 'createdAt'> & {
+          existingId?: string;
+        };
+        accounts: Array<{
+          pluggyAccountId: string;
+          name: string;
+          type: AccountType;
+          balance: number;
+        }>;
+        transactions: Array<{
+          sourcePluggyId: string;
+          pluggyAccountId: string;
+          description: string;
+          amount: number;
+          date: string;
+          direction: IncomeDirection;
+        }>;
+        syncedAt: string;
+      };
     }
   | { type: 'RESET_ALL' }
   | { type: 'IMPORT_DATA'; payload: Omit<FinanceState, 'isHydrated'> };
