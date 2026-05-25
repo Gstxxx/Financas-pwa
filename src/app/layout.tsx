@@ -10,6 +10,8 @@ import { NotificationScheduler } from '@/components/layout/NotificationScheduler
 import { PinGate } from '@/components/layout/PinGate';
 import { PWARegister } from '@/components/layout/PWARegister';
 import { SplashKiller } from '@/components/layout/SplashKiller';
+import { UpdaterProvider } from '@/lib/contexts/UpdaterContext';
+import { UpdateModal } from '@/components/updater/UpdateModal';
 import '@/styles/globals.css';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '';
@@ -135,14 +137,17 @@ export default function RootLayout({
         <SplashKiller />
         <TitleBar />
         <PinGate>
-          <FinanceProvider>
-            <ToastProvider>
-              <NotificationScheduler />
-              {children}
-              <BottomNav />
-              <PWARegister />
-            </ToastProvider>
-          </FinanceProvider>
+          <UpdaterProvider>
+            <FinanceProvider>
+              <ToastProvider>
+                <NotificationScheduler />
+                {children}
+                <BottomNav />
+                <PWARegister />
+                <UpdateModal />
+              </ToastProvider>
+            </FinanceProvider>
+          </UpdaterProvider>
         </PinGate>
       </body>
     </html>

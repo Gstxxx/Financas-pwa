@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { useUpdater } from '@/lib/contexts/UpdaterContext';
 import type { UpdateStatus } from '@/types/electron';
 
 function statusLine(s: UpdateStatus): { text: string; tone: 'info' | 'good' | 'warn' | 'bad' } {
@@ -31,39 +32,25 @@ const toneColor: Record<'info' | 'good' | 'warn' | 'bad', string> = {
 };
 
 export function UpdateSection() {
-  const [available, setAvailable] = useState(false);
-  const [status, setStatus] = useState<UpdateStatus>({ state: 'idle' });
+  const { available, status, check, openModal } = useUpdater();
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const updater = window.electron?.updater;
-    if (!updater) return;
-    setAvailable(true);
-    updater.getStatus().then(setStatus).catch(() => {});
-    const off = updater.onStatus(setStatus);
-    return off;
-  }, []);
 
   if (!available) return null;
 
-  const check = async () => {
-    const updater = window.electron?.updater;
-    if (!updater) return;
+  const onCheck = async () => {
     setBusy(true);
     try {
-      await updater.check();
+      await check();
     } finally {
       setBusy(false);
     }
   };
 
-  const install = async () => {
-    await window.electron?.updater.install();
-  };
-
   const line = statusLine(status);
-  const canInstall = status.state === 'downloaded';
+  const hasStaged =
+    status.state === 'available' ||
+    status.state === 'downloading' ||
+    status.state === 'downloaded';
 
   return (
     <div style={{ padding: '0 22px 14px' }}>
@@ -76,19 +63,20 @@ export function UpdateSection() {
         </div>
 
         <div style={{ display: 'grid', gap: 10 }}>
-          {canInstall ? (
-            <Button variant="accent" type="button" onClick={install}>
-              Reiniciar e instalar
+          {hasStaged ? (
+            <Button variant="accent" type="button" onClick={openModal}>
+              Ver detalhes
             </Button>
           ) : (
-            <Button variant="ghost" type="button" onClick={check} disabled={busy}>
+            <Button variant="ghost" type="button" onClick={onCheck} disabled={busy}>
               Verificar atualizações
             </Button>
           )}
         </div>
 
         <div style={{ fontSize: 10, color: 'var(--ink-faint)', marginTop: 12, lineHeight: 1.5 }}>
-          Novas versões baixam em segundo plano e instalam ao reiniciar.
+          Novas versões baixam em segundo plano. Quando ficam prontas, abrimos
+          uma janela com o changelog antes de reiniciar.
         </div>
       </div>
     </div>
