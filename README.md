@@ -1,66 +1,201 @@
-# Dashboard Financeiro · PWA
+# Financas
 
-App pessoal de finanças, instalável no celular, funciona offline e salva os dados localmente (`localStorage`).
+Dashboard financeiro pessoal pra desktop. Controla contas, cartões,
+parcelas, receitas recorrentes, metas e investimentos — tudo em um
+único app instalável, sem servidor, sem assinatura, sem mandar nada
+pra nuvem.
 
-## Arquivos
+Open Finance via Pluggy (free tier), chat IA local via Ollama,
+auto-update via GitHub Releases. Funciona 100% offline depois do
+primeiro boot.
+
+> Repositório nasceu como PWA (daí o sufixo `-pwa` no nome) e
+> migrou pra Electron na v1.0. Hoje o foco é o app desktop pra
+> Windows.
+
+## Download
+
+Baixe o instalador mais recente em
+[github.com/Gstxxx/Financas-pwa/releases/latest](https://github.com/Gstxxx/Financas-pwa/releases/latest)
+(`Financas Setup x.x.x.exe`, ~80 MB).
+
+Instalação silenciosa — sem janela NSIS, abre direto. Updates futuros
+descem em background e instalam quando você confirma no modal interno.
+
+## Recursos
+
+### Núcleo financeiro
+- **Multi-conta** — corrente, poupança, dinheiro, cartão de crédito,
+  investimento. Cada conta tem hue própria e ícone.
+- **Cartão de crédito** com `closingDay` / `dueDay` / `creditLimit`;
+  saldo = fatura aberta, barra de utilização.
+- **Transferências entre contas** com atualização atômica (não
+  contam como receita/despesa).
+- **Parcelas** geradas automaticamente do contrato (1×, n×, ou
+  recorrente sem fim).
+- **Receita recorrente** — template que gera Income por mês até a
+  data atual, idempotente.
+- **Metas** com tipo (savings/emergency/debt-free/custom), valor-alvo
+  e prazo.
+- **Entidades** (pessoas/categorias) coloridas e filtráveis em todas
+  as listas.
+
+### Insights e relatórios
+- **Stats** — gráficos mensais (entradas vs. saídas), top entidades,
+  evolução do saldo.
+- **Analysis** filtrado por entidade, persistido em localStorage.
+- **Simulador** de quitação de dívidas com estratégias snowball e
+  avalanche.
+- **InsightsCard** no home — anomalia de gasto, projeção de saldo,
+  alerta de orçamento.
+- **PDF mensal** via `jspdf` exportável pelo `/stats`.
+- **CSV** de transações com BOM UTF-8 (abre direto no Excel BR).
+
+### Open Finance
+- **Pluggy free tier** — conecta banco real via web-connect ou modo
+  dashboard (JWT do meu.pluggy.ai).
+- **Auto-login** opcional — abre janela embutida em meu.pluggy.ai,
+  intercepta o Bearer e salva como sessão (24h de TTL).
+- **Sync atômico** — uma chamada `IMPORT_PLUGGY_FULL` cria
+  BankConnection + Account por carteira + Income por transação,
+  com dedup por `sourcePluggyId`.
+- **Investimentos** importados como conta tipo `investment` (Tesouro,
+  FII, CDB, ação) com saldo = valor de mercado atual.
+- **Filtro de transferências internas** — Pluggy `categoryId` 04xxx
+  (Cofrinho, pagamento de fatura, PIX entre contas próprias) é
+  ignorado pra não inflar receita/despesa.
+
+### IA local
+- **Chat via Ollama** rodando local (qualquer modelo com tool support
+  — testado em `llama3.1:8b` e `qwen2.5:7b`).
+- **12+ tools** (`get_accounts`, `add_income`, `add_debt`,
+  `mark_unpaid`, `add_account`, etc) com confirmação inline antes de
+  qualquer write.
+- **Floating chat button** acessível de qualquer página.
+- **InsightsCard com IA** — 1 insight gerado por sessão, cache pra
+  não bater no LLM toda navegação.
+
+### Segurança e desktop polish
+- **PIN de abertura** com Web Crypto + salt (PBKDF2, sem dep externa
+  tipo bcrypt).
+- **Backup local** em pasta escolhida (Drive / OneDrive nativo),
+  auto-cleanup mantém últimos 30.
+- **Notificações** de contas a vencer via main process (sobrevive a
+  power resume).
+- **Snooze** de notificações em 1/3/7 dias.
+- **Tray menu** rico com resumo do mês, refresh a cada 5min.
+- **Global hotkey** `Ctrl+Shift+F` pra abrir/focar o app de qualquer
+  lugar do Windows.
+- **Atalhos** `Ctrl+1..9` (8 páginas + chat), `Ctrl+N/G/I`.
+- **Jump list** do Windows com ações rápidas.
+
+## Stack
+
+- **Electron 33** + `electron-builder` (NSIS oneClick, instalador
+  silent)
+- **Next.js 14** (app router, static export pra rodar dentro do
+  Electron)
+- **React 18** + **TypeScript 5.6**
+- **better-sqlite3** pra storage local (KV simples sob o capô)
+- **electron-updater** + GitHub Releases pra auto-update
+- **electron-log** pra log do main process
+- **jspdf** pra relatórios
+- **Pluggy** (API dev OU dashboard JWT) pra Open Finance
+- **Ollama** local pra chat IA
+
+Zero dependência de SaaS pra funcionalidade core. Pluggy e Ollama são
+opt-in.
+
+## Desenvolvimento
+
+```bash
+git clone https://github.com/Gstxxx/Financas-pwa
+cd Financas-pwa
+npm install
+npm run electron:dev
+```
+
+Isso sobe Next dev server (porta 3000) + Electron apontando pra ele
+com hot reload na UI.
+
+### Comandos úteis
+
+| Comando | O que faz |
+|---|---|
+| `npm run electron:dev` | Dev loop com hot reload |
+| `npm run build` | Build do icon + electron + Next static |
+| `npm run dist:win` | Build + empacota `.exe` em `release/` |
+| `npm run release` | Build + publica no GitHub Releases (precisa `gh auth login` antes) |
+| `npm run lint` | ESLint do código TypeScript |
+
+### Estrutura
 
 ```
-financas/
-├── index.html          ← App (HTML + CSS + JS embutidos)
-├── manifest.json       ← Config do PWA
-├── service-worker.js   ← Cache offline
-└── icon.svg            ← Ícone do app
+electron/         Main process (IPC, scheduler, updater, Pluggy client)
+src/app/          Páginas Next.js (home, debts, accounts, chat, ...)
+src/components/   React components organizados por feature
+src/lib/
+  contexts/       FinanceContext (reducer central) + ChatContext
+  services/       pluggySync, aiTools, aiInsights, pdfReport, etc
+  types/          Tipos compartilhados
+scripts/          build-icon.mjs, release.mjs
+build/            icon.ico / icon.svg pro instalador
 ```
 
-## Como publicar (3 opções rápidas)
+## Configuração opcional
 
-> Importante: PWA exige **HTTPS**. Localhost também funciona pra teste.
+### Ollama (chat IA)
 
-### 1. Vercel (mais fácil — 30 segundos)
-1. Crie conta em [vercel.com](https://vercel.com)
-2. Arraste a pasta `financas` no painel "New Project"
-3. Pronto. Você recebe uma URL tipo `seu-app.vercel.app`
+1. Instale [Ollama](https://ollama.com) e puxe um modelo com tool
+   support: `ollama pull llama3.1:8b`
+2. Garanta que `ollama serve` está rodando (geralmente sobe junto
+   com o app)
+3. No app: `/profile` → aba **IA** → testar conexão → escolher modelo
 
-### 2. Netlify Drop (sem cadastro)
-1. Acesse [app.netlify.com/drop](https://app.netlify.com/drop)
-2. Arraste a pasta `financas`
-3. Pronto
+### Pluggy (Open Finance)
 
-### 3. GitHub Pages
-1. Crie um repositório no GitHub
-2. Suba os 4 arquivos
-3. Em Settings → Pages → habilite "Deploy from branch"
+Dois modos, escolha um:
 
-## Como instalar no celular
+- **Dev (recomendado pra teste)** — crie conta em
+  [pluggy.ai](https://pluggy.ai), pegue `clientId` + `clientSecret`,
+  cole em `/openfinance` → "Modo desenvolvedor"
+- **Dashboard** — se você já usa [meu.pluggy.ai](https://meu.pluggy.ai)
+  pra ver seus bancos pessoais, clique em "Login automático" e o app
+  abre meu.pluggy.ai numa janela, captura o token e configura
+  sozinho
 
-Depois de publicado, abra a URL no celular:
+Em ambos os modos: conectar bancos via web-connect, sincronizar
+contas/transações/investimentos com um clique. Tudo fica local.
 
-- **Android (Chrome)**: aparece um banner "Instalar app". Ou menu ⋮ → "Instalar aplicativo"
-- **iPhone (Safari)**: botão Compartilhar → "Adicionar à Tela de Início"
+## Release
 
-O app vira um ícone na home do celular e abre em tela cheia, sem barras do navegador.
+Configurado pra publicar direto como **latest** (sem draft):
 
-## Funcionalidades
+```bash
+npm run release
+```
 
-- ✓ Saldo do ciclo (entradas − saídas) calculado automaticamente
-- ✓ Status automático: Atrasado / Vence em breve / Em dia
-- ✓ Filtros por status
-- ✓ Adicionar, ver detalhes e excluir contas
-- ✓ Tags coloridas (Pai, Amor, Fixo, Parcelado, Serviços, Outros)
-- ✓ Barra de progresso para parcelados
-- ✓ Funciona offline depois da primeira visita
-- ✓ Dados ficam no celular (`localStorage`)
+`releaseType: "release"` em `package.json` faz o `electron-builder`
+subir o `.exe` + `latest.yml` como release publicado.
+`electron-updater` no app instalado detecta em ~8s do próximo boot.
 
-## Personalizar
+Pré-requisito: `gh auth login` (token vem do `gh auth token`).
 
-Tudo está em **um único arquivo** `index.html`. Para ajustar:
+## Roadmap
 
-- **Cores**: bloco `:root` no `<style>` (variáveis `--bg`, `--accent`, etc.)
-- **Categorias**: variável `TAG_LABELS` no `<script>`
-- **Dados iniciais**: variável `SEED` no `<script>` (será usado se o `localStorage` estiver vazio)
+Roadmap original (4 fases) entregue na v1.1.0. Extras desde então:
+chat IA, Open Finance, investimentos, instalador silent, update
+modal customizado.
 
-## Limpar dados
+Próximas frentes possíveis:
+- `Debt.accountId` — compras em CC viram lançamentos automáticos na
+  fatura
+- OFX import (CSV já cobre maioria dos bancos BR)
+- Google Drive OAuth pra backup cross-device
+- i18n (en-US) + currency configurável
+- Investments com cotação automática
 
-Botão de seta circular no canto superior direito → restaura os dados de exemplo.
+## Licença
 
-Para limpar tudo manualmente: nas DevTools do navegador → Application → Local Storage → limpar.
+Uso pessoal. Sem licença pública definida — fork à vontade pra uso
+próprio, mas pra distribuir comercialmente abra uma issue antes.
