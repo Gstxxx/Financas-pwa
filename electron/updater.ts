@@ -39,7 +39,7 @@ function notifyDownloaded(version: string) {
     silent: false,
   });
   n.on('click', () => {
-    autoUpdater.quitAndInstall();
+    autoUpdater.quitAndInstall(true, true);
   });
   n.show();
 }
@@ -100,7 +100,13 @@ export function initAutoUpdater(opts: {
 
   ipcMain.handle('update:install', () => {
     if (pendingDownloadedVersion) {
-      autoUpdater.quitAndInstall();
+      // isSilent=true  → passes /S to the NSIS installer so the "Instalando,
+      //                  por favor aguarde…" progress window doesn't appear.
+      //                  Pairs with nsis.oneClick:true in package.json.
+      // isForceRunAfter=true → relaunch the app after the silent install
+      //                  finishes; without this the silent path can exit
+      //                  without reopening.
+      autoUpdater.quitAndInstall(true, true);
       return true;
     }
     return false;
