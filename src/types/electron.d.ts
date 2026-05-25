@@ -54,111 +54,7 @@ interface ElectronUpdaterAPI {
   onStatus(cb: (status: UpdateStatus) => void): () => void;
 }
 
-export interface PluggyItemInfo {
-  id: string;
-  status: string;
-  statusDetail?: string;
-  connector: {
-    id: number;
-    name: string;
-    institutionUrl?: string;
-    imageUrl?: string;
-    primaryColor?: string;
-    type?: string;
-  };
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface PluggyAccountInfo {
-  id: string;
-  type: string;
-  subtype?: string;
-  name: string;
-  marketingName?: string;
-  balance: number;
-  currencyCode?: string;
-  itemId: string;
-}
-
-export interface PluggyTransactionInfo {
-  id: string;
-  description: string;
-  descriptionRaw?: string;
-  amount: number;
-  date: string;
-  category?: string;
-  categoryId?: string;
-  type?: 'DEBIT' | 'CREDIT';
-  accountId: string;
-}
-
-/** A single holding returned by /investments?itemId=. Each row is one
- * Tesouro/CDB/FII/ação — its `balance` is the current market value in BRL
- * which is what we surface as the in-app account balance. */
-export interface PluggyInvestmentInfo {
-  id: string;
-  itemId: string;
-  type?: string;
-  subtype?: string;
-  name?: string;
-  issuer?: string;
-  balance?: number;
-  amount?: number;
-  amountProfit?: number;
-  quantity?: number;
-  value?: number;
-  currencyCode?: string;
-  rate?: number;
-  rateType?: string;
-  dueDate?: string;
-  issueDate?: string;
-  date?: string;
-}
-
-export interface PluggyAppSessionInfo {
-  hasSession: boolean;
-  email?: string;
-  expiresAt?: string;
-  expired?: boolean;
-  subject?: string;
-}
-
-interface ElectronPluggyAPI {
-  hasCredentials(): Promise<boolean>;
-  setCredentials(creds: { clientId: string; clientSecret: string }): Promise<boolean>;
-  clearCredentials(): Promise<boolean>;
-  testCredentials(): Promise<{ ok: boolean; message?: string }>;
-  connectToken(itemId?: string): Promise<string>;
-  getItem(itemId: string): Promise<PluggyItemInfo>;
-  refreshItem(itemId: string): Promise<PluggyItemInfo>;
-  deleteItem(itemId: string): Promise<boolean>;
-  listAccounts(itemId: string): Promise<PluggyAccountInfo[]>;
-  listTransactions(
-    accountId: string,
-    options?: { from?: string; to?: string }
-  ): Promise<PluggyTransactionInfo[]>;
-  listInvestments(itemId: string): Promise<PluggyInvestmentInfo[]>;
-  // App-session (dashboard JWT) mode
-  setAppSession(token: string): Promise<boolean>;
-  clearAppSession(): Promise<boolean>;
-  getAppSessionInfo(): Promise<PluggyAppSessionInfo>;
-  testAppSession(): Promise<{ ok: boolean; message?: string }>;
-  listItems(): Promise<PluggyItemInfo[]>;
-  /** Same as listItems() but returns the trace of which endpoints were
-   * tried, used to diagnose "Nenhum banco pra importar" when the user
-   * actually has connected banks. */
-  debugListItems(): Promise<{
-    mode: 'session' | 'dev';
-    baseUrl: string;
-    attempts: { path: string; ok: boolean; count: number; error?: string }[];
-    items: PluggyItemInfo[];
-  }>;
-  /** Opens meu.pluggy.ai in a child window, intercepts the first
-   * Bearer token the dashboard sends to my-api.pluggy.ai, and saves
-   * it as the app session. Resolves once the window closes. */
-  loginFlow(): Promise<{ ok: boolean; message?: string }>;
-}
+// Pluggy / Open Finance types removed in v1.8.0.
 
 declare global {
   interface Window {
@@ -167,7 +63,6 @@ declare global {
       desktop: ElectronDesktopAPI;
       window: ElectronWindowAPI;
       updater: ElectronUpdaterAPI;
-      pluggy: ElectronPluggyAPI;
     };
   }
 }

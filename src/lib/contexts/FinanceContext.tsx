@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { FinanceState, FinanceAction, User, Debt, Installment, Entity, Income, Goal, Account, RecurringIncome, Transfer, BankConnection } from '@/lib/types';
+import { FinanceState, FinanceAction, User, Debt, Installment, Entity, Income, Goal, Account, RecurringIncome, Transfer } from '@/lib/types';
 import { Storage, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, hashHue } from '@/lib/utils';
 import { generateInstallments, isRecurringActiveForMonth } from '@/lib/services/installment';
@@ -49,7 +49,6 @@ const INITIAL_STATE: FinanceState = {
   accounts: [],
   recurringIncomes: [],
   transfers: [],
-  bankConnections: [],
   isHydrated: false,
 };
 
@@ -159,6 +158,46 @@ function pruneSnoozes(snoozes: Record<string, string>): Record<string, string> {
     if (!isNaN(until) && until > now) out[k] = iso;
   }
   return out;
+}
+
+/**
+ * v1.8.0 one-shot migration helpers — strip Pluggy-imported data from
+ * storage after the Open Finance integration was removed.
+ *
+ * We can't migrate via a reducer action because the actions themselves
+ * were deleted. The cleanup runs unconditionally on every hydrate (cheap:
+ * a filter pass over arrays). Idempotent — once Pluggy rows are gone,
+ * subsequent hydrates do nothing.
+ *
+ * Stored fields are still readable from old JSON blobs (TypeScript can't
+ * stop runtime data from having extra properties), we just drop the rows
+ * that carry the Pluggy marker fields.
+ */
+type IncomeWithPluggy = Income & { sourcePluggyId?: string; sourceConnectionId?: string };
+type AccountWithPluggy = Account & { sourcePluggyAccountId?: string; sourceConnectionId?: string };
+
+function stripPluggyIncomes(incomes: Income[]): Income[] {
+  return (incomes as IncomeWithPluggy[]).filter((i) => !i.sourcePluggyId);
+}
+
+function stripPluggyAccounts(accounts: Account[]): Account[] {
+  return (accounts as AccountWithPluggy[]).filter((a) => !a.sourcePluggyAccountId);
+}
+
+function cleanupPluggyStorage(): void {
+  // Drop the persisted bankConnections array (key was 'finance_bank_connections')
+  // plus the Pluggy credential / session KV keys that lived in main process.
+  // The Storage layer in renderer can only touch renderer-side keys; main-
+  // process keys (KEY_CREDENTIALS, KEY_API_KEY, KEY_APP_SESSION in old
+  // electron/pluggy.ts) are orphaned in the SQLite KV but don't break
+  // anything — they're just dead rows nobody reads.
+  if (typeof window !== 'undefined') {
+    try {
+      window.electron?.storage.delete('finance_bank_connections');
+    } catch {
+      /* noop — Storage API may not be available in dev/SSR */
+    }
+  }
 }
 
 function financeReducer(state: FinanceState, action: FinanceAction): FinanceState {
@@ -519,201 +558,10 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
       };
     }
 
-    case 'ADD_BANK_CONNECTION': {
-      const conn: BankConnection = {
-        ...action.payload,
-        id: generateId(),
-        hue: action.payload.hue ?? hashHue(action.payload.institutionName),
-        createdAt: new Date().toISOString(),
-      };
-      return { ...state, bankConnections: [...state.bankConnections, conn] };
-    }
-
-    case 'UPDATE_BANK_CONNECTION': {
-      const { id, ...updates } = action.payload;
-      return {
-        ...state,
-        bankConnections: state.bankConnections.map((c) =>
-          c.id === id ? { ...c, ...updates } : c
-        ),
-      };
-    }
-
-    case 'DELETE_BANK_CONNECTION': {
-      const { id, purgeIncomes } = action.payload;
-      return {
-        ...state,
-        bankConnections: state.bankConnections.filter((c) => c.id !== id),
-        incomes: purgeIncomes
-          ? state.incomes.filter((i) => i.sourceConnectionId !== id)
-          : state.incomes,
-        // Accounts auto-created from this connection also go away — they
-        // can't be edited usefully without their source.
-        accounts: purgeIncomes
-          ? state.accounts.filter((a) => a.sourceConnectionId !== id)
-          : state.accounts,
-      };
-    }
-
-    case 'IMPORT_PLUGGY_TRANSACTIONS': {
-      const { connectionId, incomes, lastSyncAt } = action.payload;
-      // Dedup against existing incomes by sourcePluggyId.
-      const seen = new Set(
-        state.incomes
-          .map((i) => i.sourcePluggyId)
-          .filter((id): id is string => !!id)
-      );
-      const fresh = incomes.filter(
-        (i) => !i.sourcePluggyId || !seen.has(i.sourcePluggyId)
-      );
-      return {
-        ...state,
-        incomes: [...state.incomes, ...fresh],
-        bankConnections: state.bankConnections.map((c) =>
-          c.id === connectionId
-            ? {
-                ...c,
-                lastSyncAt,
-                totalImported: (c.totalImported ?? 0) + fresh.length,
-                status: 'ok',
-                statusDetail: undefined,
-              }
-            : c
-        ),
-      };
-    }
-
-    case 'IMPORT_PLUGGY_FULL': {
-      const { connection, accounts: pluggyAccts, transactions, syncedAt } = action.payload;
-      const nowISO = new Date().toISOString();
-
-      // 1. Upsert the BankConnection.
-      let bankConnections = state.bankConnections;
-      let connectionId = connection.existingId;
-      const existingByPluggyId = state.bankConnections.find(
-        (c) => c.pluggyItemId === connection.pluggyItemId
-      );
-      if (existingByPluggyId) {
-        connectionId = existingByPluggyId.id;
-        bankConnections = state.bankConnections.map((c) =>
-          c.id === existingByPluggyId.id
-            ? {
-                ...c,
-                ...connection,
-                id: c.id,
-                createdAt: c.createdAt,
-                lastSyncAt: syncedAt,
-                status: 'ok',
-                statusDetail: undefined,
-              }
-            : c
-        );
-      } else {
-        const id = connection.existingId ?? generateId();
-        connectionId = id;
-        const newConn: BankConnection = {
-          ...connection,
-          id,
-          hue: connection.hue ?? hashHue(connection.institutionName),
-          createdAt: nowISO,
-          lastSyncAt: syncedAt,
-        };
-        bankConnections = [...state.bankConnections, newConn];
-      }
-
-      // 2. Upsert one Account per Pluggy account, building a map for
-      //    transactions to reference.
-      let accounts = state.accounts;
-      const pluggyToAppAccount = new Map<string, string>();
-      for (const pa of pluggyAccts) {
-        const existing = accounts.find((a) => a.sourcePluggyAccountId === pa.pluggyAccountId);
-        if (existing) {
-          pluggyToAppAccount.set(pa.pluggyAccountId, existing.id);
-          accounts = accounts.map((a) =>
-            a.id === existing.id ? { ...a, currentBalance: pa.balance } : a
-          );
-        } else {
-          const id = generateId();
-          pluggyToAppAccount.set(pa.pluggyAccountId, id);
-          accounts = [
-            ...accounts,
-            {
-              id,
-              name: pa.name,
-              type: pa.type,
-              currentBalance: pa.balance,
-              hue: hashHue(pa.name),
-              sourcePluggyAccountId: pa.pluggyAccountId,
-              sourceConnectionId: connectionId,
-              createdAt: nowISO,
-            },
-          ];
-        }
-      }
-
-      // 3. Dedup transactions by sourcePluggyId, build Income rows
-      //    pointing at the matching account.
-      const seenPluggyIds = new Set(
-        state.incomes
-          .map((i) => i.sourcePluggyId)
-          .filter((id): id is string => !!id)
-      );
-      const freshIncomes: Income[] = [];
-      for (const tx of transactions) {
-        if (seenPluggyIds.has(tx.sourcePluggyId)) continue;
-        seenPluggyIds.add(tx.sourcePluggyId);
-        freshIncomes.push({
-          id: `pluggy-${tx.sourcePluggyId}`,
-          description: tx.description,
-          amount: tx.amount,
-          date: tx.date,
-          direction: tx.direction,
-          sourcePluggyId: tx.sourcePluggyId,
-          sourceConnectionId: connectionId,
-          accountId: pluggyToAppAccount.get(tx.pluggyAccountId),
-          createdAt: nowISO,
-        });
-      }
-
-      // 4. Bump connection counters.
-      bankConnections = bankConnections.map((c) =>
-        c.id === connectionId
-          ? {
-              ...c,
-              totalImported: (c.totalImported ?? 0) + freshIncomes.length,
-              lastSyncAt: syncedAt,
-              status: 'ok',
-              statusDetail: undefined,
-            }
-          : c
-      );
-
-      return {
-        ...state,
-        bankConnections,
-        accounts,
-        incomes: [...state.incomes, ...freshIncomes],
-      };
-    }
-
-    case 'PURGE_PLUGGY_INTERNAL': {
-      // We don't store categoryId on Incomes, so the retroactive cleanup
-      // has to rely on description heuristics. New imports use the
-      // categoryId-based filter in pluggySync.ts — this catches rows that
-      // came in before that filter existed.
-      const isInternal = (desc: string): boolean => {
-        const text = desc.toLowerCase();
-        if (text.includes('cofrinho')) return true;
-        if (text.includes('pagamento de fatura')) return true;
-        if (/\baporte\b/.test(text) && /\bcofrinho\b/.test(text)) return true;
-        if (/\bresgate\b/.test(text) && /\bcofrinho\b/.test(text)) return true;
-        return false;
-      };
-      const kept = state.incomes.filter(
-        (i) => !i.sourcePluggyId || !isInternal(i.description)
-      );
-      return { ...state, incomes: kept };
-    }
+    // Pluggy reducer cases (ADD/UPDATE/DELETE_BANK_CONNECTION,
+    // IMPORT_PLUGGY_TRANSACTIONS, IMPORT_PLUGGY_FULL, PURGE_PLUGGY_INTERNAL)
+    // removed in v1.8.0 — feature was rolled back. The one-shot migration
+    // in the hydrator below cleans up any rows the user already had.
 
     case 'RESET_ALL':
       return { ...INITIAL_STATE, isHydrated: true };
@@ -723,10 +571,12 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
       return {
         ...action.payload,
         snoozes: action.payload.snoozes ?? {},
-        accounts: ensureAccountsMigration(importedAccounts, action.payload.user),
+        accounts: stripPluggyAccounts(
+          ensureAccountsMigration(importedAccounts, action.payload.user)
+        ),
+        incomes: stripPluggyIncomes(action.payload.incomes ?? []),
         recurringIncomes: action.payload.recurringIncomes ?? [],
         transfers: action.payload.transfers ?? [],
-        bankConnections: action.payload.bankConnections ?? [],
         isHydrated: true,
       };
     }
@@ -768,7 +618,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           accounts: ensureAccountsMigration([], migrated.user),
           recurringIncomes: [],
           transfers: [],
-          bankConnections: [],
         },
       });
       return;
@@ -782,20 +631,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const installments = Storage.get<Installment[]>(STORAGE_KEYS.INSTALLMENTS) || [];
     const budgets = Storage.get(STORAGE_KEYS.BUDGETS) || [];
     const goals = ((Storage.get<Goal[]>(STORAGE_KEYS.GOALS) || []) as Goal[]).map(ensureHue);
-    const incomes = (Storage.get<Income[]>(STORAGE_KEYS.INCOMES) || []).map((i) =>
+    const rawIncomes = (Storage.get<Income[]>(STORAGE_KEYS.INCOMES) || []).map((i) =>
       i.direction ? i : { ...i, direction: 'entrada' as const }
     );
+    // v1.8.0 one-shot migration: drop everything that came in via the
+    // (now-removed) Pluggy integration. Identified by sourcePluggyId on
+    // incomes and sourcePluggyAccountId on accounts. Also wipe the
+    // legacy KV keys so a future re-enable starts clean.
+    const incomes = stripPluggyIncomes(rawIncomes);
     const snoozes = pruneSnoozes(Storage.get<Record<string, string>>(STORAGE_KEYS.SNOOZES) || {});
-    const accounts = ensureAccountsMigration(
-      (Storage.get<Account[]>(STORAGE_KEYS.ACCOUNTS) || []).map(ensureHue),
-      user
+    const accounts = stripPluggyAccounts(
+      ensureAccountsMigration(
+        (Storage.get<Account[]>(STORAGE_KEYS.ACCOUNTS) || []).map(ensureHue),
+        user
+      )
     );
     const recurringIncomes = Storage.get<RecurringIncome[]>(STORAGE_KEYS.RECURRING_INCOMES) || [];
     const transfers = Storage.get<Transfer[]>(STORAGE_KEYS.TRANSFERS) || [];
-    const bankConnections = (Storage.get<BankConnection[]>(STORAGE_KEYS.BANK_CONNECTIONS) || []).map((c) => ({
-      ...c,
-      hue: c.hue ?? hashHue(c.institutionName),
-    }));
+    // Wipe legacy Pluggy storage keys + credentials cached in main.
+    cleanupPluggyStorage();
 
     // Auto-fill any missing Income rows that the recurring templates should
     // have generated while the app was closed.
@@ -815,7 +669,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         accounts,
         recurringIncomes: gen.recurring,
         transfers,
-        bankConnections,
       } as FinanceState,
     });
   }, []);
@@ -834,7 +687,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     Storage.set(STORAGE_KEYS.ACCOUNTS, state.accounts);
     Storage.set(STORAGE_KEYS.RECURRING_INCOMES, state.recurringIncomes);
     Storage.set(STORAGE_KEYS.TRANSFERS, state.transfers);
-    Storage.set(STORAGE_KEYS.BANK_CONNECTIONS, state.bankConnections);
   }, [state]);
 
   return (

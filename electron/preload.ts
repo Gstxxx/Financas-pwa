@@ -56,60 +56,8 @@ const desktop = {
   platform: process.platform,
 };
 
-const pluggy = {
-  hasCredentials: () => ipcRenderer.invoke('pluggy:hasCredentials') as Promise<boolean>,
-  setCredentials: (creds: { clientId: string; clientSecret: string }) =>
-    ipcRenderer.invoke('pluggy:setCredentials', creds) as Promise<boolean>,
-  clearCredentials: () => ipcRenderer.invoke('pluggy:clearCredentials') as Promise<boolean>,
-  testCredentials: () =>
-    ipcRenderer.invoke('pluggy:testCredentials') as Promise<{
-      ok: boolean;
-      message?: string;
-    }>,
-  connectToken: (itemId?: string) =>
-    ipcRenderer.invoke('pluggy:connectToken', itemId) as Promise<string>,
-  getItem: (itemId: string) =>
-    ipcRenderer.invoke('pluggy:getItem', itemId) as Promise<unknown>,
-  refreshItem: (itemId: string) =>
-    ipcRenderer.invoke('pluggy:refreshItem', itemId) as Promise<unknown>,
-  deleteItem: (itemId: string) =>
-    ipcRenderer.invoke('pluggy:deleteItem', itemId) as Promise<boolean>,
-  listAccounts: (itemId: string) =>
-    ipcRenderer.invoke('pluggy:listAccounts', itemId) as Promise<unknown[]>,
-  listTransactions: (accountId: string, options?: { from?: string; to?: string }) =>
-    ipcRenderer.invoke('pluggy:listTransactions', accountId, options) as Promise<
-      unknown[]
-    >,
-  listInvestments: (itemId: string) =>
-    ipcRenderer.invoke('pluggy:listInvestments', itemId) as Promise<unknown[]>,
-  setAppSession: (token: string) =>
-    ipcRenderer.invoke('pluggy:setAppSession', token) as Promise<boolean>,
-  clearAppSession: () =>
-    ipcRenderer.invoke('pluggy:clearAppSession') as Promise<boolean>,
-  getAppSessionInfo: () =>
-    ipcRenderer.invoke('pluggy:getAppSessionInfo') as Promise<{
-      hasSession: boolean;
-      email?: string;
-      expiresAt?: string;
-      expired?: boolean;
-      subject?: string;
-    }>,
-  testAppSession: () =>
-    ipcRenderer.invoke('pluggy:testAppSession') as Promise<{
-      ok: boolean;
-      message?: string;
-    }>,
-  listItems: () => ipcRenderer.invoke('pluggy:listItems') as Promise<unknown[]>,
-  debugListItems: () =>
-    ipcRenderer.invoke('pluggy:debugListItems') as Promise<{
-      mode: 'session' | 'dev';
-      baseUrl: string;
-      attempts: { path: string; ok: boolean; count: number; error?: string }[];
-      items: unknown[];
-    }>,
-  loginFlow: () =>
-    ipcRenderer.invoke('pluggy:loginFlow') as Promise<{ ok: boolean; message?: string }>,
-};
+// `pluggy` bridge removed in v1.8.0 — see git history before the
+// removal commit if the integration ever comes back.
 
 const win = {
   minimize: () => ipcRenderer.invoke('window:minimize') as Promise<void>,
@@ -147,7 +95,7 @@ const updater = {
   },
 };
 
-const api = { storage, desktop, window: win, updater, pluggy } as const;
+const api = { storage, desktop, window: win, updater } as const;
 
 contextBridge.exposeInMainWorld('electron', api);
 

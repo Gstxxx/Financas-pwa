@@ -5,9 +5,8 @@ parcelas, receitas recorrentes, metas e investimentos — tudo em um
 único app instalável, sem servidor, sem assinatura, sem mandar nada
 pra nuvem.
 
-Open Finance via Pluggy (free tier), chat IA local via Ollama,
-auto-update via GitHub Releases. Funciona 100% offline depois do
-primeiro boot.
+Chat IA local via Ollama, auto-update via GitHub Releases. Funciona
+100% offline depois do primeiro boot.
 
 > Repositório nasceu como PWA (daí o sufixo `-pwa` no nome) e
 > migrou pra Electron na v1.0. Hoje o foco é o app desktop pra
@@ -55,20 +54,6 @@ descem em background e instalam quando você confirma no modal interno.
 - **PDF mensal** via `jspdf` exportável pelo `/stats`.
 - **CSV** de transações com BOM UTF-8 (abre direto no Excel BR).
 
-### Open Finance
-- **Pluggy free tier** — conecta banco real via web-connect ou modo
-  dashboard (JWT do meu.pluggy.ai).
-- **Auto-login** opcional — abre janela embutida em meu.pluggy.ai,
-  intercepta o Bearer e salva como sessão (24h de TTL).
-- **Sync atômico** — uma chamada `IMPORT_PLUGGY_FULL` cria
-  BankConnection + Account por carteira + Income por transação,
-  com dedup por `sourcePluggyId`.
-- **Investimentos** importados como conta tipo `investment` (Tesouro,
-  FII, CDB, ação) com saldo = valor de mercado atual.
-- **Filtro de transferências internas** — Pluggy `categoryId` 04xxx
-  (Cofrinho, pagamento de fatura, PIX entre contas próprias) é
-  ignorado pra não inflar receita/despesa.
-
 ### IA local
 - **Chat via Ollama** rodando local (qualquer modelo com tool support
   — testado em `llama3.1:8b` e `qwen2.5:7b`).
@@ -104,11 +89,9 @@ descem em background e instalam quando você confirma no modal interno.
 - **electron-updater** + GitHub Releases pra auto-update
 - **electron-log** pra log do main process
 - **jspdf** pra relatórios
-- **Pluggy** (API dev OU dashboard JWT) pra Open Finance
 - **Ollama** local pra chat IA
 
-Zero dependência de SaaS pra funcionalidade core. Pluggy e Ollama são
-opt-in.
+Zero dependência de SaaS pra funcionalidade core. Ollama é opt-in.
 
 ## Desenvolvimento
 
@@ -135,7 +118,7 @@ com hot reload na UI.
 ### Estrutura
 
 ```
-electron/         Main process (IPC, scheduler, updater, Pluggy client)
+electron/         Main process (IPC, scheduler, updater)
 src/app/          Páginas Next.js (home, debts, accounts, chat, ...)
 src/components/   React components organizados por feature
 src/lib/
@@ -156,21 +139,6 @@ build/            icon.ico / icon.svg pro instalador
    com o app)
 3. No app: `/profile` → aba **IA** → testar conexão → escolher modelo
 
-### Pluggy (Open Finance)
-
-Dois modos, escolha um:
-
-- **Dev (recomendado pra teste)** — crie conta em
-  [pluggy.ai](https://pluggy.ai), pegue `clientId` + `clientSecret`,
-  cole em `/openfinance` → "Modo desenvolvedor"
-- **Dashboard** — se você já usa [meu.pluggy.ai](https://meu.pluggy.ai)
-  pra ver seus bancos pessoais, clique em "Login automático" e o app
-  abre meu.pluggy.ai numa janela, captura o token e configura
-  sozinho
-
-Em ambos os modos: conectar bancos via web-connect, sincronizar
-contas/transações/investimentos com um clique. Tudo fica local.
-
 ## Release
 
 Configurado pra publicar direto como **latest** (sem draft):
@@ -188,8 +156,12 @@ Pré-requisito: `gh auth login` (token vem do `gh auth token`).
 ## Roadmap
 
 Roadmap original (4 fases) entregue na v1.1.0. Extras desde então:
-chat IA, Open Finance, investimentos, instalador silent, update
-modal customizado.
+chat IA local, instalador silent, update modal customizado.
+
+> Open Finance via Pluggy foi tentado nas v1.6-v1.7.5 e removido na
+> v1.8.0 — auth do dashboard JWT vs API dev fica num escopo
+> incompatível e fetch confiável de transações nunca rolou. Talvez
+> volte quando alguém wire o clientId/secret path direito.
 
 Próximas frentes possíveis:
 - `Debt.accountId` — compras em CC viram lançamentos automáticos na

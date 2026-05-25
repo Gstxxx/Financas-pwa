@@ -40,7 +40,6 @@ export function useKeyboardShortcuts() {
         '7': '/stats/',
         '8': '/profile/',
         '9': '/chat/',
-        '0': '/openfinance/',
       };
       if (NAV[key]) {
         e.preventDefault();

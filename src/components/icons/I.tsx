@@ -203,13 +203,6 @@ export const I = {
       <circle cx="16" cy="14.5" r="1.2" />
     </IconBase>
   ),
-  bank: (p: IconProps) => (
-    <IconBase {...p}>
-      <path d="M3 10 12 4l9 6" />
-      <path d="M5 10v8M9 10v8M15 10v8M19 10v8" />
-      <path d="M3 21h18" />
-    </IconBase>
-  ),
 };
 
 export type IconKey = keyof typeof I;

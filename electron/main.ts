@@ -18,25 +18,8 @@ import { pathToFileURL } from 'node:url';
 import { initDb, kvLoadAll, kvSetRaw, kvDelete, kvReset, closeDb } from './db';
 import { initAutoUpdater } from './updater';
 import { initNotificationScheduler, getTraySummary } from './scheduler';
-import {
-  setCredentials as pluggySetCredentials,
-  clearCredentials as pluggyClearCredentials,
-  hasCredentials as pluggyHasCredentials,
-  testCredentials as pluggyTestCredentials,
-  createConnectToken as pluggyConnectToken,
-  getItem as pluggyGetItem,
-  refreshItem as pluggyRefreshItem,
-  deleteItem as pluggyDeleteItem,
-  listAccounts as pluggyListAccounts,
-  listTransactions as pluggyListTransactions,
-  listInvestments as pluggyListInvestments,
-  setAppSession as pluggySetAppSession,
-  clearAppSession as pluggyClearAppSession,
-  getAppSessionInfo as pluggyGetAppSessionInfo,
-  testAppSession as pluggyTestAppSession,
-  listItems as pluggyListItems,
-  listItemsWithDebug as pluggyListItemsWithDebug,
-} from './pluggy';
+// Pluggy / Open Finance integration removed in v1.8.0 — see ./pluggy
+// in git history before commit removing this if you need to revive it.
 
 const isDev = !app.isPackaged || process.env.ELECTRON_DEV === '1';
 const startedHidden = process.argv.includes('--hidden');
@@ -316,167 +299,13 @@ function registerIpc() {
 
   ipcMain.handle('tray:getSummary', () => getTraySummary());
 
-  // ── Pluggy / Open Finance ──────────────────────────────────────────
-  ipcMain.handle('pluggy:hasCredentials', () => pluggyHasCredentials());
-  ipcMain.handle(
-    'pluggy:setCredentials',
-    (_e, creds: { clientId: string; clientSecret: string }) => {
-      pluggySetCredentials(creds);
-      return true;
-    }
-  );
-  ipcMain.handle('pluggy:clearCredentials', () => {
-    pluggyClearCredentials();
-    return true;
-  });
-  ipcMain.handle('pluggy:testCredentials', async () => pluggyTestCredentials());
-  ipcMain.handle('pluggy:connectToken', async (_e, itemId?: string) =>
-    pluggyConnectToken(itemId)
-  );
-  ipcMain.handle('pluggy:getItem', async (_e, itemId: string) => pluggyGetItem(itemId));
-  ipcMain.handle('pluggy:refreshItem', async (_e, itemId: string) =>
-    pluggyRefreshItem(itemId)
-  );
-  ipcMain.handle('pluggy:deleteItem', async (_e, itemId: string) => {
-    await pluggyDeleteItem(itemId);
-    return true;
-  });
-  ipcMain.handle('pluggy:listAccounts', async (_e, itemId: string) =>
-    pluggyListAccounts(itemId)
-  );
-  ipcMain.handle(
-    'pluggy:listTransactions',
-    async (_e, accountId: string, options?: { from?: string; to?: string }) =>
-      pluggyListTransactions(accountId, options)
-  );
-  ipcMain.handle('pluggy:listInvestments', async (_e, itemId: string) =>
-    pluggyListInvestments(itemId)
-  );
-
-  // App-session mode (dashboard JWT)
-  ipcMain.handle('pluggy:setAppSession', (_e, token: string) => {
-    pluggySetAppSession(token);
-    return true;
-  });
-  ipcMain.handle('pluggy:clearAppSession', () => {
-    pluggyClearAppSession();
-    return true;
-  });
-  ipcMain.handle('pluggy:getAppSessionInfo', () => pluggyGetAppSessionInfo());
-  ipcMain.handle('pluggy:testAppSession', async () => pluggyTestAppSession());
-  ipcMain.handle('pluggy:listItems', async () => pluggyListItems());
-  ipcMain.handle('pluggy:debugListItems', async () => pluggyListItemsWithDebug());
-
-  /**
-   * One-click connect flow. Opens an Electron BrowserWindow at the
-   * Pluggy dashboard, lets the user authenticate (Auth0 redirect chain
-   * works because cookies persist on the dedicated session partition),
-   * then sniffs the first request that goes out to my-api.pluggy.ai to
-   * extract the Bearer token. Saves it as the app session and closes
-   * the window.
-   *
-   * No credential ever passes through our renderer — it's only seen by
-   * the dashboard's own JS inside its window, then captured at the
-   * webRequest layer in main.
-   */
-  ipcMain.handle('pluggy:loginFlow', async () => {
-    return new Promise<{ ok: boolean; message?: string }>((resolve) => {
-      const win = new BrowserWindow({
-        width: 1024,
-        height: 760,
-        title: 'Pluggy · login',
-        parent: mainWindow ?? undefined,
-        modal: false,
-        backgroundColor: '#15171b',
-        autoHideMenuBar: true,
-        webPreferences: {
-          // Dedicated partition so cookies persist between flows but
-          // don't pollute the main app's session.
-          partition: 'persist:pluggy-login',
-          contextIsolation: true,
-          nodeIntegration: false,
-          sandbox: true,
-        },
-      });
-
-      let captured = false;
-      const filter = { urls: ['*://my-api.pluggy.ai/*'] };
-
-      // Block known third-party trackers that meu.pluggy.ai loads
-      // (Segment, Google Analytics, FullStory, Hotjar, etc). They don't
-      // touch our data — they only watch what the user clicks on the
-      // Pluggy dashboard — but blocking them is cheap, makes the login
-      // window load faster, and avoids contributing telemetry that the
-      // user didn't opt into when they just wanted to authenticate.
-      const trackerHosts = [
-        '*://cdn.segment.com/*',
-        '*://api.segment.io/*',
-        '*://*.segment.io/*',
-        '*://www.google-analytics.com/*',
-        '*://www.googletagmanager.com/*',
-        '*://*.google-analytics.com/*',
-        '*://*.googletagmanager.com/*',
-        '*://*.hotjar.com/*',
-        '*://*.fullstory.com/*',
-        '*://*.intercom.io/*',
-        '*://*.intercomcdn.com/*',
-        '*://*.mixpanel.com/*',
-        '*://*.amplitude.com/*',
-        '*://*.posthog.com/*',
-        '*://*.sentry.io/*',
-        '*://*.datadoghq.com/*',
-      ];
-      win.webContents.session.webRequest.onBeforeRequest(
-        { urls: trackerHosts },
-        (_details, callback) => callback({ cancel: true })
-      );
-
-      win.webContents.session.webRequest.onBeforeSendHeaders(
-        filter,
-        (details, callback) => {
-          // Headers come keyed in a way that varies — accept either case.
-          const rawAuth =
-            details.requestHeaders['Authorization'] ??
-            details.requestHeaders['authorization'];
-          if (
-            !captured &&
-            typeof rawAuth === 'string' &&
-            rawAuth.startsWith('Bearer ')
-          ) {
-            captured = true;
-            pluggySetAppSession(rawAuth.slice(7));
-            // Close shortly after so the in-flight request still completes.
-            setTimeout(() => {
-              if (!win.isDestroyed()) win.close();
-            }, 300);
-            resolve({ ok: true });
-          }
-          callback({ requestHeaders: details.requestHeaders });
-        }
-      );
-
-      // 5min hard cap so a stalled login doesn't leave the window
-      // floating forever.
-      const timer = setTimeout(
-        () => {
-          if (!captured && !win.isDestroyed()) {
-            win.close();
-            resolve({ ok: false, message: 'Tempo esgotado (5 minutos)' });
-          }
-        },
-        5 * 60 * 1000
-      );
-
-      win.on('closed', () => {
-        clearTimeout(timer);
-        if (!captured) {
-          resolve({ ok: false, message: 'Janela fechada antes do login' });
-        }
-      });
-
-      win.loadURL('https://meu.pluggy.ai/cash');
-    });
-  });
+  // Pluggy / Open Finance handlers + auto-login BrowserWindow removed in
+  // v1.8.0. The Pluggy API made it impossible to actually fetch account
+  // data reliably (auth scope mismatch between consumer JWT and dev API),
+  // so the feature is gone until/unless someone wires up the dev-API
+  // clientId/secret path properly. KV keys finance_pluggy_credentials,
+  // finance_pluggy_api_key, finance_pluggy_app_session are wiped on the
+  // renderer side via the one-shot migration in FinanceContext.
 
   // Frameless window controls — replace the native title bar buttons.
   ipcMain.handle('window:minimize', () => {
