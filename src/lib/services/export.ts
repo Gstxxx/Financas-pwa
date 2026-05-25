@@ -135,6 +135,7 @@ export function importFromJSON(jsonString: string): Omit<FinanceState, 'isHydrat
       accounts: data.accounts || [],
       recurringIncomes: data.recurringIncomes || [],
       transfers: data.transfers || [],
+      bankConnections: data.bankConnections || [],
     };
   } catch {
     return null;

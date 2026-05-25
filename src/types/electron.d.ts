@@ -54,6 +54,61 @@ interface ElectronUpdaterAPI {
   onStatus(cb: (status: UpdateStatus) => void): () => void;
 }
 
+export interface PluggyItemInfo {
+  id: string;
+  status: string;
+  statusDetail?: string;
+  connector: {
+    id: number;
+    name: string;
+    institutionUrl?: string;
+    imageUrl?: string;
+    primaryColor?: string;
+    type?: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PluggyAccountInfo {
+  id: string;
+  type: string;
+  subtype?: string;
+  name: string;
+  marketingName?: string;
+  balance: number;
+  currencyCode?: string;
+  itemId: string;
+}
+
+export interface PluggyTransactionInfo {
+  id: string;
+  description: string;
+  descriptionRaw?: string;
+  amount: number;
+  date: string;
+  category?: string;
+  categoryId?: string;
+  type?: 'DEBIT' | 'CREDIT';
+  accountId: string;
+}
+
+interface ElectronPluggyAPI {
+  hasCredentials(): Promise<boolean>;
+  setCredentials(creds: { clientId: string; clientSecret: string }): Promise<boolean>;
+  clearCredentials(): Promise<boolean>;
+  testCredentials(): Promise<{ ok: boolean; message?: string }>;
+  connectToken(itemId?: string): Promise<string>;
+  getItem(itemId: string): Promise<PluggyItemInfo>;
+  refreshItem(itemId: string): Promise<PluggyItemInfo>;
+  deleteItem(itemId: string): Promise<boolean>;
+  listAccounts(itemId: string): Promise<PluggyAccountInfo[]>;
+  listTransactions(
+    accountId: string,
+    options?: { from?: string; to?: string }
+  ): Promise<PluggyTransactionInfo[]>;
+}
+
 declare global {
   interface Window {
     electron?: {
@@ -61,6 +116,7 @@ declare global {
       desktop: ElectronDesktopAPI;
       window: ElectronWindowAPI;
       updater: ElectronUpdaterAPI;
+      pluggy: ElectronPluggyAPI;
     };
   }
 }

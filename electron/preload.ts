@@ -56,6 +56,32 @@ const desktop = {
   platform: process.platform,
 };
 
+const pluggy = {
+  hasCredentials: () => ipcRenderer.invoke('pluggy:hasCredentials') as Promise<boolean>,
+  setCredentials: (creds: { clientId: string; clientSecret: string }) =>
+    ipcRenderer.invoke('pluggy:setCredentials', creds) as Promise<boolean>,
+  clearCredentials: () => ipcRenderer.invoke('pluggy:clearCredentials') as Promise<boolean>,
+  testCredentials: () =>
+    ipcRenderer.invoke('pluggy:testCredentials') as Promise<{
+      ok: boolean;
+      message?: string;
+    }>,
+  connectToken: (itemId?: string) =>
+    ipcRenderer.invoke('pluggy:connectToken', itemId) as Promise<string>,
+  getItem: (itemId: string) =>
+    ipcRenderer.invoke('pluggy:getItem', itemId) as Promise<unknown>,
+  refreshItem: (itemId: string) =>
+    ipcRenderer.invoke('pluggy:refreshItem', itemId) as Promise<unknown>,
+  deleteItem: (itemId: string) =>
+    ipcRenderer.invoke('pluggy:deleteItem', itemId) as Promise<boolean>,
+  listAccounts: (itemId: string) =>
+    ipcRenderer.invoke('pluggy:listAccounts', itemId) as Promise<unknown[]>,
+  listTransactions: (accountId: string, options?: { from?: string; to?: string }) =>
+    ipcRenderer.invoke('pluggy:listTransactions', accountId, options) as Promise<
+      unknown[]
+    >,
+};
+
 const win = {
   minimize: () => ipcRenderer.invoke('window:minimize') as Promise<void>,
   toggleMaximize: () => ipcRenderer.invoke('window:toggleMaximize') as Promise<boolean>,
@@ -92,7 +118,7 @@ const updater = {
   },
 };
 
-const api = { storage, desktop, window: win, updater } as const;
+const api = { storage, desktop, window: win, updater, pluggy } as const;
 
 contextBridge.exposeInMainWorld('electron', api);
 

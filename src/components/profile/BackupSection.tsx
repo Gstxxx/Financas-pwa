@@ -17,7 +17,7 @@ interface BackupSectionProps {
  * sync on the chosen folder and you get cloud backup without OAuth.
  */
 export function BackupSection({ onToast }: BackupSectionProps) {
-  const { user, entities, debts, installments, budgets, goals, incomes, snoozes, accounts, recurringIncomes, transfers } =
+  const { user, entities, debts, installments, budgets, goals, incomes, snoozes, accounts, recurringIncomes, transfers, bankConnections } =
     useFinanceData();
   const [folder, setFolder] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -44,7 +44,7 @@ export function BackupSection({ onToast }: BackupSectionProps) {
     setBusy(true);
     const desktop = window.electron!.desktop;
     const stateData = {
-      user, entities, debts, installments, budgets, goals, incomes, snoozes, accounts, recurringIncomes, transfers,
+      user, entities, debts, installments, budgets, goals, incomes, snoozes, accounts, recurringIncomes, transfers, bankConnections,
     };
     const json = exportToJSON(stateData);
     const result = await desktop.writeBackup({ folder, json });
