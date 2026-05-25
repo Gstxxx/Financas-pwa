@@ -35,4 +35,6 @@ run('npx', ['electron-builder', '--win', '--publish', 'always'], {
   env: { ...process.env, GH_TOKEN: token },
 });
 
-console.log('\nDraft release created on GitHub. Open the repo, review, and publish it.');
+// `releaseType: "release"` in package.json's publish config makes the
+// upload land as Latest directly — no draft step.
+console.log('\nRelease published live on GitHub. electron-updater will pick it up within ~8s of next app launch.');
