@@ -256,6 +256,53 @@ input[type="date"] { color-scheme: inherit; }
   border-color: transparent;
 }
 
+/* Category pill — colored chip per entity hue. The lightness values live
+   in --cat-*-l vars so each theme can flip them: dark themes lean on
+   light text + dark tinted bg, light themes do the opposite. The hue
+   itself is set inline on the element via --cat-h. */
+:root {
+  --cat-text-l: 0.86;
+  --cat-text-c: 0.10;
+  --cat-bg-l: 0.30;
+  --cat-bg-c: 0.06;
+  --cat-bg-a: 0.45;
+  --cat-border-l: 0.50;
+  --cat-border-c: 0.08;
+  --cat-border-a: 0.55;
+  --cat-dot-l: 0.80;
+  --cat-dot-c: 0.14;
+}
+.theme-cream {
+  /* Light mode: deeper text, paler bg, mid border. Hue chroma stays
+     reasonable so categories still feel colored, not washed gray. */
+  --cat-text-l: 0.34;
+  --cat-text-c: 0.13;
+  --cat-bg-l: 0.95;
+  --cat-bg-c: 0.05;
+  --cat-bg-a: 1;
+  --cat-border-l: 0.78;
+  --cat-border-c: 0.07;
+  --cat-border-a: 0.75;
+  --cat-dot-l: 0.55;
+  --cat-dot-c: 0.18;
+}
+.pill.pill-cat {
+  color: oklch(var(--cat-text-l) var(--cat-text-c) var(--cat-h));
+  border-color: oklch(var(--cat-border-l) var(--cat-border-c) var(--cat-h) / var(--cat-border-a));
+  background: oklch(var(--cat-bg-l) var(--cat-bg-c) var(--cat-h) / var(--cat-bg-a));
+}
+.pill.pill-cat .cat-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: oklch(var(--cat-dot-l) var(--cat-dot-c) var(--cat-h));
+  flex-shrink: 0;
+}
+.pill.pill-cat .cat-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
 /* ── Buttons ── */
 .btn {
   font-family: var(--f-sans);

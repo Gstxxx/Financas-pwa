@@ -3,22 +3,22 @@
 import { getEntityHue } from '@/lib/utils';
 
 interface CatPillProps {
-  entity: { name: string; hue?: number | null };
+  entity: { name: string; hue?: number | null; icon?: string };
 }
 
 export function CatPill({ entity }: CatPillProps) {
   if (!entity?.name) return null;
   const hue = getEntityHue(entity);
+  // Inline only the hue — the actual color values live in globals.css so
+  // they can flip per theme. Trying to hardcode oklch() lightness here
+  // breaks contrast in light mode (text and bg collapse onto each other).
   return (
     <span
-      className="pill"
-      style={{
-        color: `oklch(0.80 0.10 ${hue})`,
-        borderColor: `oklch(0.40 0.06 ${hue} / 0.6)`,
-        background: `oklch(0.24 0.04 ${hue} / 0.4)`,
-      }}
+      className="pill pill-cat"
+      style={{ ['--cat-h' as string]: String(hue) }}
     >
-      <span className="dot" style={{ background: `oklch(0.78 0.12 ${hue})` }} />
+      <span className="cat-dot" />
+      {entity.icon ? <span className="cat-icon">{entity.icon}</span> : null}
       {entity.name}
     </span>
   );
