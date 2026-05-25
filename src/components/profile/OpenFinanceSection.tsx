@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { useFinance } from '@/lib/contexts/FinanceContext';
 import { syncConnection } from '@/lib/services/pluggySync';
 import type { BankConnection } from '@/lib/types';
-import type { PluggyItemInfo } from '@/types/electron';
+import type { PluggyAppSessionInfo, PluggyItemInfo } from '@/types/electron';
 
 interface OpenFinanceSectionProps {
   onToast: (msg: string) => void;
@@ -70,10 +70,24 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
   const [connecting, setConnecting] = useState(false);
   const widgetRef = useRef<{ init: () => void; exit?: () => void } | null>(null);
 
+  // App Session (dashboard JWT) mode — alternative path.
+  const [sessionInfo, setSessionInfo] = useState<PluggyAppSessionInfo>({ hasSession: false });
+  const [showSessionForm, setShowSessionForm] = useState(false);
+  const [sessionInput, setSessionInput] = useState('');
+  const [sessionTesting, setSessionTesting] = useState(false);
+  const [importingItems, setImportingItems] = useState(false);
+
+  const refreshSessionInfo = async () => {
+    if (!pluggy) return;
+    const info = await pluggy.getAppSessionInfo();
+    setSessionInfo(info);
+  };
+
   useEffect(() => {
     if (!pluggy) return;
     setAvailable(true);
     pluggy.hasCredentials().then(setHasCreds);
+    pluggy.getAppSessionInfo().then(setSessionInfo);
   }, [pluggy]);
 
   if (!available) {
@@ -194,6 +208,70 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
     onToast(`${res.fetched} transações puxadas — duplicadas ignoradas.`);
   };
 
+  const saveSession = async () => {
+    if (!pluggy || !sessionInput.trim()) return;
+    setSessionTesting(true);
+    await pluggy.setAppSession(sessionInput.trim());
+    const probe = await pluggy.testAppSession();
+    setSessionTesting(false);
+    if (probe.ok) {
+      await refreshSessionInfo();
+      setShowSessionForm(false);
+      setSessionInput('');
+      onToast('Sessão Pluggy ativa!');
+    } else {
+      await pluggy.clearAppSession();
+      await refreshSessionInfo();
+      onToast(`Falha: ${probe.message ?? 'token inválido'}`);
+    }
+  };
+
+  const removeSession = async () => {
+    if (!pluggy) return;
+    if (!window.confirm('Remover sessão Pluggy? As conexões importadas ficam.')) return;
+    await pluggy.clearAppSession();
+    await refreshSessionInfo();
+    onToast('Sessão removida.');
+  };
+
+  const importItemsFromSession = async () => {
+    if (!pluggy) return;
+    setImportingItems(true);
+    try {
+      const items = (await pluggy.listItems()) as PluggyItemInfo[];
+      let created = 0;
+      let skipped = 0;
+      for (const item of items) {
+        const existing = state.bankConnections.find((c) => c.pluggyItemId === item.id);
+        if (existing) {
+          skipped++;
+          continue;
+        }
+        dispatch({
+          type: 'ADD_BANK_CONNECTION',
+          payload: {
+            pluggyItemId: item.id,
+            institutionName: item.connector?.name ?? 'Banco',
+            institutionLogoUrl: item.connector?.imageUrl,
+            connectorId: item.connector?.id,
+            status: item.status === 'UPDATED' ? 'ok' : 'updating',
+            statusDetail: item.statusDetail,
+          },
+        });
+        created++;
+      }
+      onToast(
+        created === 0 && skipped > 0
+          ? `Já estavam todas importadas (${skipped})`
+          : `${created} bancos importados${skipped > 0 ? ` · ${skipped} já existiam` : ''}`
+      );
+    } catch (err) {
+      onToast(`Falha ao listar: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setImportingItems(false);
+    }
+  };
+
   const handleDisconnect = async (conn: BankConnection) => {
     if (
       !window.confirm(
@@ -220,6 +298,193 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
 
   return (
     <div style={{ padding: '0 22px 14px' }}>
+      {/* — Modo App Session (atalho via JWT do dashboard) — */}
+      <div className="card" style={{ padding: 22, marginBottom: 14 }}>
+        <h3 className="t-h3" style={{ marginBottom: 8 }}>
+          App Session (atalho)
+        </h3>
+        <p style={{ fontSize: 12.5, color: 'var(--ink-mute)', marginBottom: 14, lineHeight: 1.5 }}>
+          Em vez de criar app no dashboard de devs, cole aqui o JWT que o
+          dashboard{' '}
+          <a
+            href="https://meu.pluggy.ai"
+            target="_blank"
+            rel="noreferrer noopener"
+            style={{ color: 'var(--accent)' }}
+          >
+            meu.pluggy.ai
+          </a>{' '}
+          usa. <strong>Trade-off:</strong> token expira em ~24h — toda vez
+          precisa repegar do DevTools (Network → qualquer request →
+          Authorization: Bearer ...).
+        </p>
+
+        {!sessionInfo.hasSession && !showSessionForm && (
+          <Button type="button" variant="ghost" onClick={() => setShowSessionForm(true)}>
+            Colar token de sessão
+          </Button>
+        )}
+
+        {!sessionInfo.hasSession && showSessionForm && (
+          <div>
+            <label className="field-label">JWT (começa com eyJ…)</label>
+            <textarea
+              value={sessionInput}
+              onChange={(e) => setSessionInput(e.target.value)}
+              placeholder="eyJhbGciOiJSUzI1NiIs…"
+              spellCheck={false}
+              style={{
+                width: '100%',
+                minHeight: 88,
+                padding: '10px 12px',
+                fontSize: 11,
+                fontFamily: 'var(--f-mono)',
+                background: 'var(--surface)',
+                border: '1px solid var(--hair)',
+                color: 'var(--ink)',
+                borderRadius: 12,
+                outline: 'none',
+                resize: 'vertical',
+                marginBottom: 12,
+                wordBreak: 'break-all',
+              }}
+            />
+            <Button
+              type="button"
+              variant="accent"
+              onClick={saveSession}
+              disabled={sessionTesting || !sessionInput.trim()}
+            >
+              {sessionTesting ? 'Testando…' : 'Salvar e testar'}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="mt-2"
+              onClick={() => {
+                setShowSessionForm(false);
+                setSessionInput('');
+              }}
+            >
+              Cancelar
+            </Button>
+          </div>
+        )}
+
+        {sessionInfo.hasSession && (
+          <div>
+            <div
+              style={{
+                padding: '10px 12px',
+                background: sessionInfo.expired
+                  ? 'color-mix(in oklch, var(--neg) 12%, transparent)'
+                  : 'color-mix(in oklch, var(--accent) 10%, transparent)',
+                border: `1px solid ${
+                  sessionInfo.expired
+                    ? 'color-mix(in oklch, var(--neg) 30%, transparent)'
+                    : 'color-mix(in oklch, var(--accent) 28%, transparent)'
+                }`,
+                borderRadius: 10,
+                marginBottom: 12,
+                fontSize: 12,
+                lineHeight: 1.5,
+                color: sessionInfo.expired ? 'var(--neg)' : 'var(--ink-mid)',
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: 'var(--f-mono)',
+                  fontSize: 10.5,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  marginBottom: 4,
+                  color: sessionInfo.expired ? 'var(--neg)' : 'var(--accent)',
+                }}
+              >
+                {sessionInfo.expired ? '× expirado' : '✓ ativo'}
+              </div>
+              {sessionInfo.email && <div>{sessionInfo.email}</div>}
+              {sessionInfo.expiresAt && (
+                <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 2 }}>
+                  Expira em {new Date(sessionInfo.expiresAt).toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </div>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              variant="accent"
+              onClick={importItemsFromSession}
+              disabled={importingItems || sessionInfo.expired}
+            >
+              {importingItems ? 'Importando…' : 'Importar bancos conectados'}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="mt-2"
+              onClick={() => setShowSessionForm(true)}
+            >
+              Trocar token
+            </Button>
+            <Button type="button" variant="ghost" className="mt-2" onClick={removeSession}>
+              Remover sessão
+            </Button>
+          </div>
+        )}
+
+        {sessionInfo.hasSession && showSessionForm && (
+          <div style={{ marginTop: 12 }}>
+            <label className="field-label">Novo JWT</label>
+            <textarea
+              value={sessionInput}
+              onChange={(e) => setSessionInput(e.target.value)}
+              placeholder="eyJhbGciOiJSUzI1NiIs…"
+              spellCheck={false}
+              style={{
+                width: '100%',
+                minHeight: 88,
+                padding: '10px 12px',
+                fontSize: 11,
+                fontFamily: 'var(--f-mono)',
+                background: 'var(--surface)',
+                border: '1px solid var(--hair)',
+                color: 'var(--ink)',
+                borderRadius: 12,
+                outline: 'none',
+                resize: 'vertical',
+                marginBottom: 12,
+                wordBreak: 'break-all',
+              }}
+            />
+            <Button
+              type="button"
+              variant="accent"
+              onClick={saveSession}
+              disabled={sessionTesting || !sessionInput.trim()}
+            >
+              {sessionTesting ? 'Testando…' : 'Atualizar token'}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="mt-2"
+              onClick={() => {
+                setShowSessionForm(false);
+                setSessionInput('');
+              }}
+            >
+              Cancelar
+            </Button>
+          </div>
+        )}
+      </div>
+
       <div className="card" style={{ padding: 22 }}>
         <h3 className="t-h3" style={{ marginBottom: 8 }}>
           Open Finance (via Pluggy)

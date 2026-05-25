@@ -29,6 +29,11 @@ import {
   deleteItem as pluggyDeleteItem,
   listAccounts as pluggyListAccounts,
   listTransactions as pluggyListTransactions,
+  setAppSession as pluggySetAppSession,
+  clearAppSession as pluggyClearAppSession,
+  getAppSessionInfo as pluggyGetAppSessionInfo,
+  testAppSession as pluggyTestAppSession,
+  listItems as pluggyListItems,
 } from './pluggy';
 
 const isDev = !app.isPackaged || process.env.ELECTRON_DEV === '1';
@@ -342,6 +347,19 @@ function registerIpc() {
     async (_e, accountId: string, options?: { from?: string; to?: string }) =>
       pluggyListTransactions(accountId, options)
   );
+
+  // App-session mode (dashboard JWT)
+  ipcMain.handle('pluggy:setAppSession', (_e, token: string) => {
+    pluggySetAppSession(token);
+    return true;
+  });
+  ipcMain.handle('pluggy:clearAppSession', () => {
+    pluggyClearAppSession();
+    return true;
+  });
+  ipcMain.handle('pluggy:getAppSessionInfo', () => pluggyGetAppSessionInfo());
+  ipcMain.handle('pluggy:testAppSession', async () => pluggyTestAppSession());
+  ipcMain.handle('pluggy:listItems', async () => pluggyListItems());
 
   // Frameless window controls — replace the native title bar buttons.
   ipcMain.handle('window:minimize', () => {
