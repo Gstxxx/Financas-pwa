@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { ChatMessage } from '@/lib/contexts/ChatContext';
 
 type AssistantPiece = NonNullable<ChatMessage['pieces']>[number];
@@ -19,10 +20,29 @@ const STATUS_LABEL: Record<ToolCallPiece['status'], { text: string; color: strin
   error: { text: 'Falhou', color: 'var(--neg)' },
 };
 
+/** Tries to pull a human-readable message out of the JSON the tool
+ * returned. Tools store either `{ error: "..." }` on failure or the
+ * shape they normally yield. */
+function extractMessage(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      if (typeof parsed.error === 'string') return parsed.error;
+    }
+  } catch {
+    // Fall through — show raw if it's plain text.
+  }
+  if (raw.length > 220) return raw.slice(0, 200) + '…';
+  return raw;
+}
+
 export function ToolCallCard({ piece, onConfirm, onReject }: ToolCallCardProps) {
+  const [showRaw, setShowRaw] = useState(false);
   const isWriteAction = piece.status === 'pending_confirm';
   const status = STATUS_LABEL[piece.status];
   const label = piece.description ?? `Chamando \`${piece.name}\``;
+  const errorMsg = piece.status === 'error' ? extractMessage(piece.resultPreview) : null;
 
   return (
     <div
@@ -135,6 +155,77 @@ export function ToolCallCard({ piece, onConfirm, onReject }: ToolCallCardProps) 
           </button>
         </div>
       )}
+
+      {errorMsg && (
+        <div
+          style={{
+            marginTop: 8,
+            padding: '8px 10px',
+            background: 'color-mix(in oklch, var(--neg) 10%, transparent)',
+            border: '1px solid color-mix(in oklch, var(--neg) 28%, transparent)',
+            borderRadius: 8,
+            fontSize: 11.5,
+            color: 'var(--neg)',
+            lineHeight: 1.45,
+            fontFamily: 'var(--f-mono)',
+          }}
+        >
+          {errorMsg}
+        </div>
+      )}
+
+      {/* Debug toggle for power users — see the raw JSON the tool returned.
+         Hidden behind a click so the card stays clean by default. */}
+      {!isWriteAction && piece.resultPreview && (piece.status === 'done' || piece.status === 'error') && (
+        <div style={{ marginTop: 6 }}>
+          <button
+            type="button"
+            onClick={() => setShowRaw((v) => !v)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--ink-faint)',
+              fontSize: 10.5,
+              fontFamily: 'var(--f-mono)',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            {showRaw ? '× ocultar resultado' : 'ver resultado bruto'}
+          </button>
+          {showRaw && (
+            <pre
+              style={{
+                marginTop: 6,
+                padding: '8px 10px',
+                background: 'var(--bg)',
+                border: '1px solid var(--hair-soft)',
+                borderRadius: 8,
+                fontSize: 11,
+                color: 'var(--ink-mid)',
+                fontFamily: 'var(--f-mono)',
+                lineHeight: 1.45,
+                maxHeight: 200,
+                overflow: 'auto',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              {safePretty(piece.resultPreview)}
+            </pre>
+          )}
+        </div>
+      )}
     </div>
   );
+}
+
+function safePretty(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
 }
