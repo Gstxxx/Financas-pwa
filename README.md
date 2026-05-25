@@ -13,6 +13,10 @@ primeiro boot.
 > migrou pra Electron na v1.0. Hoje o foco é o app desktop pra
 > Windows.
 
+<p align="center">
+  <img src="screenshots/home.png" alt="Tela inicial mostrando saldo do ciclo, entradas, saídas, atalhos para estatísticas e metas, e a navegação inferior" width="380">
+</p>
+
 ## Download
 
 Baixe o instalador mais recente em
