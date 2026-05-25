@@ -16,9 +16,11 @@
 
 import { kvGetRaw, kvSetRaw, kvDelete } from './db';
 
-const BASE_URL = 'https://api.pluggy.ai';
+const API_DEV = 'https://api.pluggy.ai';
+const API_DASHBOARD = 'https://my-api.pluggy.ai';
 const KEY_CREDENTIALS = 'finance_pluggy_credentials';
 const KEY_API_KEY = 'finance_pluggy_api_key';
+const KEY_APP_SESSION = 'finance_pluggy_app_session';
 
 interface Credentials {
   clientId: string;
@@ -84,9 +86,52 @@ async function fetchJson<T>(
   return (await res.json()) as T;
 }
 
+// ─── App-session mode (dashboard JWT) ──────────────────────────────
+// Alternative auth: user pastes their `my-api.pluggy.ai` JWT (captured
+// from the meu.pluggy.ai web app). We then call the dashboard API
+// directly with `Authorization: Bearer <jwt>` instead of going through
+// the dev clientId/secret + apiKey dance. Tokens expire in ~24h so the
+// user has to re-paste; we surface the expiry in the UI.
+
+function readAppSession(): string | null {
+  const raw = kvGetRaw(KEY_APP_SESSION);
+  return raw && raw.trim() ? raw.trim() : null;
+}
+
+interface AuthInfo {
+  mode: 'session' | 'dev';
+  baseUrl: string;
+  headers: Record<string, string>;
+}
+
+async function getAuth(): Promise<AuthInfo> {
+  // Session takes priority. If the user pasted a JWT, we use the
+  // dashboard API regardless of whether dev credentials are also set.
+  const session = readAppSession();
+  if (session) {
+    return {
+      mode: 'session',
+      baseUrl: API_DASHBOARD,
+      headers: {
+        Authorization: `Bearer ${session}`,
+        // Mimic the browser request — some dashboard endpoints check
+        // Referer to keep random scripts away.
+        Referer: 'https://meu.pluggy.ai/',
+      },
+    };
+  }
+  const apiKey = await getApiKey();
+  return {
+    mode: 'dev',
+    baseUrl: API_DEV,
+    headers: { 'X-API-KEY': apiKey },
+  };
+}
+
 /**
  * Returns a valid apiKey, refreshing if cache is missing/expired.
- * Throws if credentials aren't configured.
+ * Throws if credentials aren't configured. (Dev-API path only — session
+ * mode never calls this.)
  */
 async function getApiKey(force = false): Promise<string> {
   const creds = readCredentials();
@@ -100,7 +145,7 @@ async function getApiKey(force = false): Promise<string> {
     }
   }
 
-  const data = await fetchJson<{ apiKey: string }>(`${BASE_URL}/auth`, {
+  const data = await fetchJson<{ apiKey: string }>(`${API_DEV}/auth`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ clientId: creds.clientId, clientSecret: creds.clientSecret }),
@@ -112,24 +157,29 @@ async function getApiKey(force = false): Promise<string> {
 }
 
 async function authedFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  let apiKey = await getApiKey();
-  const callOnce = (key: string) =>
-    fetchJson<T>(`${BASE_URL}${path}`, {
+  let auth = await getAuth();
+  const callOnce = (a: AuthInfo) =>
+    fetchJson<T>(`${a.baseUrl}${path}`, {
       ...init,
       headers: {
-        ...(init.headers ?? {}),
-        'X-API-KEY': key,
         'Content-Type': 'application/json',
+        ...a.headers,
+        ...(init.headers ?? {}),
       },
     });
   try {
-    return await callOnce(apiKey);
+    return await callOnce(auth);
   } catch (err) {
-    // 401/403 likely means the apiKey expired — refresh once.
     const msg = err instanceof Error ? err.message : String(err);
     if (/401|403/.test(msg)) {
-      apiKey = await getApiKey(true);
-      return await callOnce(apiKey);
+      // Dev mode: try refreshing the apiKey once and re-call.
+      // Session mode: the JWT can't be refreshed from here — caller has
+      // to paste a fresh one. Surface the error so the UI can prompt.
+      if (auth.mode === 'dev') {
+        await getApiKey(true);
+        auth = await getAuth();
+        return await callOnce(auth);
+      }
     }
     throw err;
   }
@@ -160,6 +210,87 @@ export async function testCredentials(): Promise<{ ok: boolean; message?: string
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) };
   }
+}
+
+// ─── App session (dashboard JWT) public surface ────────────────────
+
+export interface AppSessionInfo {
+  hasSession: boolean;
+  email?: string;
+  expiresAt?: string; // ISO
+  expired?: boolean;
+  subject?: string;
+}
+
+function decodeJwt(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    // base64url → standard base64 + pad
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+export function setAppSession(token: string): void {
+  const trimmed = token.trim();
+  if (!trimmed) {
+    kvDelete(KEY_APP_SESSION);
+    return;
+  }
+  kvSetRaw(KEY_APP_SESSION, trimmed);
+}
+
+export function clearAppSession(): void {
+  kvDelete(KEY_APP_SESSION);
+}
+
+export function getAppSessionInfo(): AppSessionInfo {
+  const token = readAppSession();
+  if (!token) return { hasSession: false };
+  const claims = decodeJwt(token);
+  if (!claims) return { hasSession: true };
+  const exp = typeof claims.exp === 'number' ? (claims.exp as number) * 1000 : undefined;
+  const sub = typeof claims.sub === 'string' ? (claims.sub as string) : undefined;
+  // The email lives under a custom claim Pluggy issues:
+  //   "https://api.pluggy.ai/email": "..."
+  const email = (claims as Record<string, unknown>)['https://api.pluggy.ai/email'];
+  return {
+    hasSession: true,
+    email: typeof email === 'string' ? email : undefined,
+    expiresAt: exp ? new Date(exp).toISOString() : undefined,
+    expired: exp ? exp < Date.now() : undefined,
+    subject: sub,
+  };
+}
+
+/**
+ * Pings an authenticated endpoint to verify the pasted JWT is valid.
+ * Uses /items because both dev API and dashboard API expose it.
+ */
+export async function testAppSession(): Promise<{ ok: boolean; message?: string }> {
+  try {
+    await listItems();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * Lists all items the current auth context has access to. Dev API and
+ * dashboard API differ in whether they wrap with `{ results: [...] }`
+ * so we accept both shapes.
+ */
+export async function listItems(): Promise<PluggyItem[]> {
+  type ListShape = PluggyItem[] | { results: PluggyItem[] };
+  const data = await authedFetch<ListShape>(`/items`);
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
 }
 
 /**

@@ -80,6 +80,24 @@ const pluggy = {
     ipcRenderer.invoke('pluggy:listTransactions', accountId, options) as Promise<
       unknown[]
     >,
+  setAppSession: (token: string) =>
+    ipcRenderer.invoke('pluggy:setAppSession', token) as Promise<boolean>,
+  clearAppSession: () =>
+    ipcRenderer.invoke('pluggy:clearAppSession') as Promise<boolean>,
+  getAppSessionInfo: () =>
+    ipcRenderer.invoke('pluggy:getAppSessionInfo') as Promise<{
+      hasSession: boolean;
+      email?: string;
+      expiresAt?: string;
+      expired?: boolean;
+      subject?: string;
+    }>,
+  testAppSession: () =>
+    ipcRenderer.invoke('pluggy:testAppSession') as Promise<{
+      ok: boolean;
+      message?: string;
+    }>,
+  listItems: () => ipcRenderer.invoke('pluggy:listItems') as Promise<unknown[]>,
 };
 
 const win = {

@@ -93,6 +93,14 @@ export interface PluggyTransactionInfo {
   accountId: string;
 }
 
+export interface PluggyAppSessionInfo {
+  hasSession: boolean;
+  email?: string;
+  expiresAt?: string;
+  expired?: boolean;
+  subject?: string;
+}
+
 interface ElectronPluggyAPI {
   hasCredentials(): Promise<boolean>;
   setCredentials(creds: { clientId: string; clientSecret: string }): Promise<boolean>;
@@ -107,6 +115,12 @@ interface ElectronPluggyAPI {
     accountId: string,
     options?: { from?: string; to?: string }
   ): Promise<PluggyTransactionInfo[]>;
+  // App-session (dashboard JWT) mode
+  setAppSession(token: string): Promise<boolean>;
+  clearAppSession(): Promise<boolean>;
+  getAppSessionInfo(): Promise<PluggyAppSessionInfo>;
+  testAppSession(): Promise<{ ok: boolean; message?: string }>;
+  listItems(): Promise<PluggyItemInfo[]>;
 }
 
 declare global {
