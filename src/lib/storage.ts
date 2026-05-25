@@ -134,4 +134,6 @@ export const STORAGE_KEYS = {
   PIN_HASH: 'finance_pin_hash',
   BACKUP_FOLDER: 'finance_backup_folder',
   INSIGHTS_DISMISSED: 'finance_insights_dismissed',
+  OLLAMA_SETTINGS: 'finance_ollama',
+  CHAT_HISTORY: 'finance_chat_history',
 } as const;
