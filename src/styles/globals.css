@@ -471,11 +471,16 @@ select.input {
   border: 1px solid var(--hair);
   border-radius: 99px;
   padding: 6px;
+  /* Auto-flow column lets the tabbar accept any number of items in a
+     single row without hardcoding repeat(N, 1fr). minmax(0, 1fr) caps
+     the natural width so long labels (CATEGORIAS, CARTEIRAS) don't push
+     the row to two lines. */
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 2px;
   width: 100%;
-  max-width: 448px;
+  max-width: 540px;
   transition: background-color 0.32s ease, border-color 0.32s ease;
 }
 .tab {
@@ -491,12 +496,22 @@ select.input {
   color: var(--ink-mute);
   cursor: pointer;
   font-family: var(--f-sans);
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   text-decoration: none;
   transition: color 0.18s ease, background-color 0.18s ease;
+  /* Truncate at the cell boundary instead of wrapping a label like
+     "CATEGORIAS" onto a second line that would balloon the tab height. */
+  min-width: 0;
+  overflow: hidden;
+}
+.tab span {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tab.active {
   background: var(--surface-2);
