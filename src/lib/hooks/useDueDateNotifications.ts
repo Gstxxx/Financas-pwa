@@ -50,7 +50,7 @@ function stampSent(bills: DueBill[], sent: SentMap): SentMap {
  * Designed to be mounted once at the layout level.
  */
 export function useDueDateNotifications() {
-  const { isHydrated, debts, installments } = useFinanceData();
+  const { isHydrated, debts, installments, snoozes } = useFinanceData();
   const lastRunRef = useRef(0);
 
   useEffect(() => {
@@ -64,12 +64,14 @@ export function useDueDateNotifications() {
       if (now - lastRunRef.current < 30_000) return;
       lastRunRef.current = now;
 
-      const bills = getBillsDueSoon({ debts, installments }, 1);
+      const bills = getBillsDueSoon({ debts, installments, snoozes }, 1);
       if (bills.length === 0) return;
 
-      // --- Windows toast (desktop only) -----------------------------------
+      // --- Windows toast: only when the main process scheduler isn't
+      // available. Inside Electron, electron/scheduler.ts owns the toast
+      // path so it keeps running even if the renderer is unloaded. -------
       const desktop = typeof window !== 'undefined' ? window.electron?.desktop : null;
-      if (desktop) {
+      if (desktop && !desktop.hasBackgroundScheduler) {
         const sent = loadSent(SENT_TOAST_KEY);
         const fresh = freshBills(bills, sent);
         if (fresh.length > 0) {
@@ -81,7 +83,8 @@ export function useDueDateNotifications() {
         }
       }
 
-      // --- Discord webhook (optional) -------------------------------------
+      // --- Discord webhook (optional, lives in renderer for both web and
+      // desktop because main has no built-in fetch retry/notion of urls) -
       const webhookUrl = Storage.get<string>(STORAGE_KEYS.DISCORD_WEBHOOK);
       if (webhookUrl && webhookUrl.startsWith('https://')) {
         const sent = loadSent(SENT_WEBHOOK_KEY);
@@ -102,5 +105,5 @@ export function useDueDateNotifications() {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [isHydrated, debts, installments]);
+  }, [isHydrated, debts, installments, snoozes]);
 }

@@ -29,17 +29,31 @@ import type { Debt, Installment } from '@/lib/types';
 type Filter = 'todas' | 'atrasado' | 'breve' | 'ok';
 
 interface BillItem {
+  /** Stable key shared with snoozes/dedup: `${debtId}@${dueDate}`. */
+  key: string;
   debt: Debt;
   installment?: Installment;
   dueDate: string;
   status: DebtStatusType;
   progress?: number;
+  snoozedUntil?: string;
+}
+
+function snoozeIsoIn(days: number): string {
+  // Snooze ends at the end of the day +N days from today, so a 1-day snooze
+  // suppresses notifications throughout tomorrow as well.
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(23, 59, 59, 0);
+  return d.toISOString();
 }
 
 export function UpcomingBills() {
-  const { isHydrated, debts, installments, entities, dispatch } = useFinanceData();
+  const { isHydrated, debts, installments, entities, snoozes, dispatch } = useFinanceData();
   const [filter, setFilter] = useState<Filter>('todas');
   const [selectedBill, setSelectedBill] = useState<BillItem | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const bills = useMemo<BillItem[]>(() => {
     if (!isHydrated) return [];
@@ -50,27 +64,33 @@ export function UpcomingBills() {
       if (debt.isRecurring) {
         if (isRecurringActiveForMonth(debt, month, year)) {
           const next = getRecurringNextDue(debt, installments, month, year);
+          const key = `${debt.id}@${next.dueDate}`;
           items.push({
+            key,
             debt,
             dueDate: next.dueDate,
             status: getInstallmentStatus(next.dueDate, false),
+            snoozedUntil: snoozes[key],
           });
         }
       } else {
         const next = getNextUnpaidInstallment(installments, debt.id);
         if (next) {
+          const key = `${debt.id}@${next.dueDate}`;
           items.push({
+            key,
             debt,
             installment: next,
             dueDate: next.dueDate,
             status: getInstallmentStatus(next.dueDate, next.isPaid),
             progress: getDebtProgress(debt, installments),
+            snoozedUntil: snoozes[key],
           });
         }
       }
     });
     return items.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-  }, [isHydrated, debts, installments]);
+  }, [isHydrated, debts, installments, snoozes]);
 
   const filteredBills = useMemo(() => {
     if (filter === 'todas') return bills;
@@ -95,7 +115,21 @@ export function UpcomingBills() {
     );
   }
 
-  const handleMarkPaid = (bill: BillItem) => {
+  const exitSelection = () => {
+    setSelectionMode(false);
+    setSelected(new Set());
+  };
+
+  const toggleSelected = (key: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const markPaid = (bill: BillItem) => {
     if (bill.installment) {
       dispatch({
         type: 'MARK_PAID',
@@ -104,6 +138,29 @@ export function UpcomingBills() {
     } else {
       dispatch({ type: 'MARK_PAID', payload: { debtId: bill.debt.id, dueDate: bill.dueDate } });
     }
+  };
+
+  const handleMarkPaid = (bill: BillItem) => {
+    markPaid(bill);
+    setSelectedBill(null);
+  };
+
+  const handleBulkMarkPaid = () => {
+    const toMark = bills.filter((b) => selected.has(b.key));
+    toMark.forEach(markPaid);
+    exitSelection();
+  };
+
+  const handleSnooze = (bill: BillItem, days: number) => {
+    dispatch({
+      type: 'SNOOZE_BILL',
+      payload: { billKey: bill.key, until: snoozeIsoIn(days) },
+    });
+    setSelectedBill(null);
+  };
+
+  const handleUnsnooze = (bill: BillItem) => {
+    dispatch({ type: 'UNSNOOZE_BILL', payload: { billKey: bill.key } });
     setSelectedBill(null);
   };
 
@@ -129,6 +186,22 @@ export function UpcomingBills() {
     { value: 'ok', label: 'Em dia', count: counts.ok },
   ];
 
+  const renderBillCard = (items: BillItem[], opacity = 1) => (
+    <div className="card" style={{ overflow: 'hidden', opacity }}>
+      {items.map((bill) => (
+        <BillRowWrapper
+          key={bill.key}
+          bill={bill}
+          entities={entities}
+          selectionMode={selectionMode}
+          isSelected={selected.has(bill.key)}
+          onToggleSelect={() => toggleSelected(bill.key)}
+          onClick={() => setSelectedBill(bill)}
+        />
+      ))}
+    </div>
+  );
+
   return (
     <>
       <div className="section-label">
@@ -144,6 +217,26 @@ export function UpcomingBills() {
         >
           {filteredBills.length}/{bills.length}
         </span>
+        {bills.length > 0 && (
+          <button
+            type="button"
+            onClick={() => (selectionMode ? exitSelection() : setSelectionMode(true))}
+            style={{
+              marginLeft: 8,
+              fontFamily: 'var(--f-mono)',
+              fontSize: 11,
+              letterSpacing: '0.04em',
+              color: selectionMode ? 'var(--accent)' : 'var(--ink-mute)',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 4,
+              textTransform: 'uppercase',
+            }}
+          >
+            {selectionMode ? 'Cancelar' : 'Selecionar'}
+          </button>
+        )}
       </div>
 
       <div style={{ padding: '0 22px 12px', overflowX: 'auto' }} className="hide-scrollbar">
@@ -157,28 +250,7 @@ export function UpcomingBills() {
       ) : (
         <>
           {curMonthBills.length > 0 && (
-            <div style={{ padding: '0 22px 12px' }}>
-              <div className="card" style={{ overflow: 'hidden' }}>
-                {curMonthBills.map((bill) => (
-                  <AccountRow
-                    key={`${bill.debt.id}-${bill.dueDate}`}
-                    debt={bill.debt}
-                    dueDate={bill.dueDate}
-                    status={bill.status}
-                    installmentInfo={
-                      !bill.debt.isRecurring && bill.installment
-                        ? {
-                            current: bill.installment.installmentNumber,
-                            total: bill.debt.numberOfInstallments,
-                          }
-                        : undefined
-                    }
-                    entities={entities}
-                    onClick={() => setSelectedBill(bill)}
-                  />
-                ))}
-              </div>
-            </div>
+            <div style={{ padding: '0 22px 12px' }}>{renderBillCard(curMonthBills)}</div>
           )}
           {Array.from(groupedFuture.entries()).map(([key, items]) => {
             const [yStr, mStr] = key.split('-');
@@ -187,32 +259,48 @@ export function UpcomingBills() {
             return (
               <div key={key}>
                 <div className="month-marker">{fmtMonthYear(m, y)}</div>
-                <div style={{ padding: '0 22px 12px' }}>
-                  <div className="card" style={{ overflow: 'hidden', opacity: 0.85 }}>
-                    {items.map((bill) => (
-                      <AccountRow
-                        key={`${bill.debt.id}-${bill.dueDate}`}
-                        debt={bill.debt}
-                        dueDate={bill.dueDate}
-                        status={bill.status}
-                        installmentInfo={
-                          !bill.debt.isRecurring && bill.installment
-                            ? {
-                                current: bill.installment.installmentNumber,
-                                total: bill.debt.numberOfInstallments,
-                              }
-                            : undefined
-                        }
-                        entities={entities}
-                        onClick={() => setSelectedBill(bill)}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <div style={{ padding: '0 22px 12px' }}>{renderBillCard(items, 0.85)}</div>
               </div>
             );
           })}
         </>
+      )}
+
+      {selectionMode && selected.size > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            left: 16,
+            right: 16,
+            bottom: 86,
+            zIndex: 80,
+            display: 'flex',
+            gap: 8,
+            padding: '10px 12px',
+            background: 'var(--surface-2)',
+            border: '1px solid var(--hair)',
+            borderRadius: 16,
+            boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
+            alignItems: 'center',
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'var(--f-mono)',
+              fontSize: 12,
+              color: 'var(--ink)',
+              flex: 1,
+            }}
+          >
+            {selected.size} selecionada{selected.size === 1 ? '' : 's'}
+          </span>
+          <Button variant="accent" onClick={handleBulkMarkPaid}>
+            Marcar pagas
+          </Button>
+          <Button variant="ghost" onClick={exitSelection}>
+            Cancelar
+          </Button>
+        </div>
       )}
 
       <BottomSheet
@@ -239,12 +327,44 @@ export function UpcomingBills() {
                 <DetailRow label="Categorias" value={selectedBill.debt.entityNames.join(', ')} />
               )}
               <DetailRow label="Status" value={<StatusPill status={selectedBill.status} />} />
+              {selectedBill.snoozedUntil && (
+                <DetailRow
+                  label="Adiado até"
+                  value={fmtDate(selectedBill.snoozedUntil.slice(0, 10))}
+                />
+              )}
             </div>
+
             {selectedBill.status !== 'pago' && (
-              <Button variant="accent" onClick={() => handleMarkPaid(selectedBill)}>
-                Marcar como pago
-              </Button>
+              <>
+                <Button variant="accent" onClick={() => handleMarkPaid(selectedBill)}>
+                  Marcar como pago
+                </Button>
+
+                <div
+                  style={{
+                    marginTop: 12,
+                    fontSize: 11,
+                    color: 'var(--ink-mute)',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Adiar notificação
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <SnoozeButton onClick={() => handleSnooze(selectedBill, 1)}>1 dia</SnoozeButton>
+                  <SnoozeButton onClick={() => handleSnooze(selectedBill, 3)}>3 dias</SnoozeButton>
+                  <SnoozeButton onClick={() => handleSnooze(selectedBill, 7)}>1 semana</SnoozeButton>
+                  {selectedBill.snoozedUntil && (
+                    <SnoozeButton onClick={() => handleUnsnooze(selectedBill)}>
+                      Cancelar
+                    </SnoozeButton>
+                  )}
+                </div>
+              </>
             )}
+
             <Button variant="ghost" onClick={() => setSelectedBill(null)} className="mt-2">
               Fechar
             </Button>
@@ -252,6 +372,116 @@ export function UpcomingBills() {
         )}
       </BottomSheet>
     </>
+  );
+}
+
+function SnoozeButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        flex: 1,
+        padding: '8px 6px',
+        fontSize: 12,
+        fontFamily: 'var(--f-mono)',
+        color: 'var(--ink-mid)',
+        background: 'var(--surface)',
+        border: '1px solid var(--hair)',
+        borderRadius: 10,
+        cursor: 'pointer',
+        transition: 'background-color 0.18s',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function BillRowWrapper({
+  bill,
+  entities,
+  selectionMode,
+  isSelected,
+  onToggleSelect,
+  onClick,
+}: {
+  bill: BillItem;
+  entities: import('@/lib/types').Entity[];
+  selectionMode: boolean;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+  onClick: () => void;
+}) {
+  if (!selectionMode) {
+    return (
+      <AccountRow
+        debt={bill.debt}
+        dueDate={bill.dueDate}
+        status={bill.status}
+        installmentInfo={
+          !bill.debt.isRecurring && bill.installment
+            ? { current: bill.installment.installmentNumber, total: bill.debt.numberOfInstallments }
+            : undefined
+        }
+        entities={entities}
+        onClick={onClick}
+      />
+    );
+  }
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '28px 1fr',
+        alignItems: 'stretch',
+      }}
+      onClick={onToggleSelect}
+      role="button"
+      tabIndex={0}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingLeft: 14,
+        }}
+      >
+        <div
+          aria-hidden
+          style={{
+            width: 18,
+            height: 18,
+            borderRadius: 6,
+            border: '1.5px solid var(--hair)',
+            background: isSelected ? 'var(--accent)' : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--surface)',
+            fontSize: 12,
+            lineHeight: 1,
+          }}
+        >
+          {isSelected && '✓'}
+        </div>
+      </div>
+      <div style={{ pointerEvents: 'none' }}>
+        <AccountRow
+          debt={bill.debt}
+          dueDate={bill.dueDate}
+          status={bill.status}
+          installmentInfo={
+            !bill.debt.isRecurring && bill.installment
+              ? { current: bill.installment.installmentNumber, total: bill.debt.numberOfInstallments }
+              : undefined
+          }
+          entities={entities}
+        />
+      </div>
+    </div>
   );
 }
 

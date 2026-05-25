@@ -45,8 +45,19 @@ const INITIAL_STATE: FinanceState = {
   budgets: [],
   goals: [],
   incomes: [],
+  snoozes: {},
   isHydrated: false,
 };
+
+function pruneSnoozes(snoozes: Record<string, string>): Record<string, string> {
+  const now = Date.now();
+  const out: Record<string, string> = {};
+  for (const [k, iso] of Object.entries(snoozes)) {
+    const until = new Date(iso).getTime();
+    if (!isNaN(until) && until > now) out[k] = iso;
+  }
+  return out;
+}
 
 function financeReducer(state: FinanceState, action: FinanceAction): FinanceState {
   switch (action.type) {
@@ -262,11 +273,23 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
         incomes: state.incomes.filter((i) => i.id !== action.payload),
       };
 
+    case 'SNOOZE_BILL': {
+      return {
+        ...state,
+        snoozes: { ...state.snoozes, [action.payload.billKey]: action.payload.until },
+      };
+    }
+
+    case 'UNSNOOZE_BILL': {
+      const { [action.payload.billKey]: _removed, ...rest } = state.snoozes;
+      return { ...state, snoozes: rest };
+    }
+
     case 'RESET_ALL':
       return { ...INITIAL_STATE, isHydrated: true };
 
     case 'IMPORT_DATA':
-      return { ...action.payload, isHydrated: true };
+      return { ...action.payload, snoozes: action.payload.snoozes ?? {}, isHydrated: true };
 
     default:
       return state;
@@ -301,6 +324,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           budgets: [],
           goals: [],
           incomes: [],
+          snoozes: {},
         },
       });
       return;
@@ -317,10 +341,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const incomes = (Storage.get<Income[]>(STORAGE_KEYS.INCOMES) || []).map((i) =>
       i.direction ? i : { ...i, direction: 'entrada' as const }
     );
+    const snoozes = pruneSnoozes(Storage.get<Record<string, string>>(STORAGE_KEYS.SNOOZES) || {});
 
     dispatch({
       type: 'HYDRATE',
-      payload: { user, entities, debts, installments, budgets, goals, incomes } as FinanceState,
+      payload: { user, entities, debts, installments, budgets, goals, incomes, snoozes } as FinanceState,
     });
   }, []);
 
@@ -334,6 +359,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     Storage.set(STORAGE_KEYS.BUDGETS, state.budgets);
     Storage.set(STORAGE_KEYS.GOALS, state.goals);
     Storage.set(STORAGE_KEYS.INCOMES, state.incomes);
+    Storage.set(STORAGE_KEYS.SNOOZES, state.snoozes);
   }, [state]);
 
   return (

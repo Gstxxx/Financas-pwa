@@ -1,18 +1,57 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Container } from '@/components/layout/Container';
 import { PageHead } from '@/components/ui/PageHead';
 import { MonthSelector } from '@/components/analysis/MonthSelector';
 import { MonthlyBudgetCard } from '@/components/analysis/MonthlyBudgetCard';
 import { ExpenseBreakdown } from '@/components/analysis/ExpenseBreakdown';
+import { EntityFilter } from '@/components/analysis/EntityFilter';
 import { I } from '@/components/icons/I';
 import { getCurrentMonth, getCurrentYear } from '@/lib/utils';
+import { Storage, STORAGE_KEYS } from '@/lib/storage';
+
+interface PersistedFilters {
+  entityIds: string[];
+}
 
 export default function AnalysisPage() {
   const [month, setMonth] = useState(getCurrentMonth());
   const [year, setYear] = useState(getCurrentYear());
+  const [entityFilter, setEntityFilter] = useState<Set<string>>(new Set());
+
+  // Hydrate filter selection from localStorage on mount.
+  useEffect(() => {
+    const persisted = Storage.get<PersistedFilters>(STORAGE_KEYS.ANALYSIS_FILTERS);
+    if (persisted?.entityIds?.length) {
+      setEntityFilter(new Set(persisted.entityIds));
+    }
+  }, []);
+
+  const persistFilter = useCallback((next: Set<string>) => {
+    Storage.set<PersistedFilters>(STORAGE_KEYS.ANALYSIS_FILTERS, {
+      entityIds: Array.from(next),
+    });
+  }, []);
+
+  const toggleEntity = (id: string) => {
+    setEntityFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      persistFilter(next);
+      return next;
+    });
+  };
+
+  const clearEntities = () => {
+    setEntityFilter(() => {
+      const next = new Set<string>();
+      persistFilter(next);
+      return next;
+    });
+  };
 
   return (
     <Container>
@@ -29,8 +68,14 @@ export default function AnalysisPage() {
         />
       </div>
 
+      <EntityFilter
+        selected={entityFilter}
+        onToggle={toggleEntity}
+        onClear={clearEntities}
+      />
+
       <MonthlyBudgetCard month={month} year={year} />
-      <ExpenseBreakdown month={month} year={year} />
+      <ExpenseBreakdown month={month} year={year} entityFilter={entityFilter} />
 
       <div
         style={{

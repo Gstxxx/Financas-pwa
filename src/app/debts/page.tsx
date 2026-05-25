@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Container } from '@/components/layout/Container';
 import { PageHead } from '@/components/ui/PageHead';
 import { AdaptiveFab } from '@/components/layout/AdaptiveFab';
@@ -11,15 +11,26 @@ import { Seg } from '@/components/ui/Seg';
 import { CalendarStrip } from '@/components/charts/CalendarStrip';
 import { useToastContext } from '@/lib/contexts/ToastContext';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
+import { useQueryFlag } from '@/lib/hooks/useQueryFlag';
 import { getCurrentMonth, getCurrentYear, fmtMonthYear } from '@/lib/utils';
 
 type SortKey = 'venc' | 'valor' | 'nome';
 
 export default function DebtsPage() {
+  return (
+    <Suspense fallback={<Container><PageHead overline="" title="Contas" /></Container>}>
+      <DebtsPageInner />
+    </Suspense>
+  );
+}
+
+function DebtsPageInner() {
   const [showForm, setShowForm] = useState(false);
   const [sort, setSort] = useState<SortKey>('venc');
   const { toast } = useToastContext();
   const { debts, getDueByDay } = useFinanceData();
+
+  useQueryFlag('new', () => setShowForm(true));
 
   const month = getCurrentMonth();
   const year = getCurrentYear();
