@@ -547,6 +547,11 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
         incomes: purgeIncomes
           ? state.incomes.filter((i) => i.sourceConnectionId !== id)
           : state.incomes,
+        // Accounts auto-created from this connection also go away — they
+        // can't be edited usefully without their source.
+        accounts: purgeIncomes
+          ? state.accounts.filter((a) => a.sourceConnectionId !== id)
+          : state.accounts,
       };
     }
 
@@ -575,6 +580,119 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
               }
             : c
         ),
+      };
+    }
+
+    case 'IMPORT_PLUGGY_FULL': {
+      const { connection, accounts: pluggyAccts, transactions, syncedAt } = action.payload;
+      const nowISO = new Date().toISOString();
+
+      // 1. Upsert the BankConnection.
+      let bankConnections = state.bankConnections;
+      let connectionId = connection.existingId;
+      const existingByPluggyId = state.bankConnections.find(
+        (c) => c.pluggyItemId === connection.pluggyItemId
+      );
+      if (existingByPluggyId) {
+        connectionId = existingByPluggyId.id;
+        bankConnections = state.bankConnections.map((c) =>
+          c.id === existingByPluggyId.id
+            ? {
+                ...c,
+                ...connection,
+                id: c.id,
+                createdAt: c.createdAt,
+                lastSyncAt: syncedAt,
+                status: 'ok',
+                statusDetail: undefined,
+              }
+            : c
+        );
+      } else {
+        const id = connection.existingId ?? generateId();
+        connectionId = id;
+        const newConn: BankConnection = {
+          ...connection,
+          id,
+          hue: connection.hue ?? hashHue(connection.institutionName),
+          createdAt: nowISO,
+          lastSyncAt: syncedAt,
+        };
+        bankConnections = [...state.bankConnections, newConn];
+      }
+
+      // 2. Upsert one Account per Pluggy account, building a map for
+      //    transactions to reference.
+      let accounts = state.accounts;
+      const pluggyToAppAccount = new Map<string, string>();
+      for (const pa of pluggyAccts) {
+        const existing = accounts.find((a) => a.sourcePluggyAccountId === pa.pluggyAccountId);
+        if (existing) {
+          pluggyToAppAccount.set(pa.pluggyAccountId, existing.id);
+          accounts = accounts.map((a) =>
+            a.id === existing.id ? { ...a, currentBalance: pa.balance } : a
+          );
+        } else {
+          const id = generateId();
+          pluggyToAppAccount.set(pa.pluggyAccountId, id);
+          accounts = [
+            ...accounts,
+            {
+              id,
+              name: pa.name,
+              type: pa.type,
+              currentBalance: pa.balance,
+              hue: hashHue(pa.name),
+              sourcePluggyAccountId: pa.pluggyAccountId,
+              sourceConnectionId: connectionId,
+              createdAt: nowISO,
+            },
+          ];
+        }
+      }
+
+      // 3. Dedup transactions by sourcePluggyId, build Income rows
+      //    pointing at the matching account.
+      const seenPluggyIds = new Set(
+        state.incomes
+          .map((i) => i.sourcePluggyId)
+          .filter((id): id is string => !!id)
+      );
+      const freshIncomes: Income[] = [];
+      for (const tx of transactions) {
+        if (seenPluggyIds.has(tx.sourcePluggyId)) continue;
+        seenPluggyIds.add(tx.sourcePluggyId);
+        freshIncomes.push({
+          id: `pluggy-${tx.sourcePluggyId}`,
+          description: tx.description,
+          amount: tx.amount,
+          date: tx.date,
+          direction: tx.direction,
+          sourcePluggyId: tx.sourcePluggyId,
+          sourceConnectionId: connectionId,
+          accountId: pluggyToAppAccount.get(tx.pluggyAccountId),
+          createdAt: nowISO,
+        });
+      }
+
+      // 4. Bump connection counters.
+      bankConnections = bankConnections.map((c) =>
+        c.id === connectionId
+          ? {
+              ...c,
+              totalImported: (c.totalImported ?? 0) + freshIncomes.length,
+              lastSyncAt: syncedAt,
+              status: 'ok',
+              statusDetail: undefined,
+            }
+          : c
+      );
+
+      return {
+        ...state,
+        bankConnections,
+        accounts,
+        incomes: [...state.incomes, ...freshIncomes],
       };
     }
 

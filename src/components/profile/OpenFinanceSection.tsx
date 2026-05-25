@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useFinance } from '@/lib/contexts/FinanceContext';
-import { syncConnection } from '@/lib/services/pluggySync';
+import { fullSyncItem } from '@/lib/services/pluggySync';
 import type { BankConnection } from '@/lib/types';
 import type { PluggyAppSessionInfo, PluggyItemInfo } from '@/types/electron';
 
@@ -188,9 +188,9 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
 
   const handleSync = async (conn: BankConnection) => {
     setSyncing(conn.id);
-    const res = await syncConnection(conn.id, conn.pluggyItemId);
+    const res = await fullSyncItem(conn.pluggyItemId, conn.id);
     setSyncing(null);
-    if (!res.ok) {
+    if (!res.ok || !res.payload) {
       dispatch({
         type: 'UPDATE_BANK_CONNECTION',
         payload: { id: conn.id, status: 'error', statusDetail: res.error },
@@ -198,15 +198,10 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
       onToast(`Sync falhou: ${res.error}`);
       return;
     }
-    dispatch({
-      type: 'IMPORT_PLUGGY_TRANSACTIONS',
-      payload: {
-        connectionId: conn.id,
-        incomes: res.incomes,
-        lastSyncAt: res.syncedAt,
-      },
-    });
-    onToast(`${res.fetched} transações puxadas — duplicadas ignoradas.`);
+    dispatch({ type: 'IMPORT_PLUGGY_FULL', payload: res.payload });
+    onToast(
+      `${res.fetchedTransactions} transações · ${res.accountCount} carteiras atualizadas`
+    );
   };
 
   const saveSession = async () => {
@@ -235,43 +230,41 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
     onToast('Sessão removida.');
   };
 
-  const importItemsFromSession = async (silent = false): Promise<number> => {
-    if (!pluggy) return 0;
+  const importItemsFromSession = async (
+    silent = false
+  ): Promise<{ items: number; accounts: number; transactions: number }> => {
+    const totals = { items: 0, accounts: 0, transactions: 0 };
+    if (!pluggy) return totals;
     setImportingItems(true);
     try {
       const items = (await pluggy.listItems()) as PluggyItemInfo[];
-      let created = 0;
-      let skipped = 0;
       for (const item of items) {
         const existing = state.bankConnections.find((c) => c.pluggyItemId === item.id);
-        if (existing) {
-          skipped++;
+        const sync = await fullSyncItem(item.id, existing?.id);
+        if (!sync.ok || !sync.payload) {
+          if (!silent) {
+            onToast(`Falha em ${item.connector?.name ?? 'item'}: ${sync.error ?? 'erro'}`);
+          }
           continue;
         }
-        dispatch({
-          type: 'ADD_BANK_CONNECTION',
-          payload: {
-            pluggyItemId: item.id,
-            institutionName: item.connector?.name ?? 'Banco',
-            institutionLogoUrl: item.connector?.imageUrl,
-            connectorId: item.connector?.id,
-            status: item.status === 'UPDATED' ? 'ok' : 'updating',
-            statusDetail: item.statusDetail,
-          },
-        });
-        created++;
+        dispatch({ type: 'IMPORT_PLUGGY_FULL', payload: sync.payload });
+        totals.items += 1;
+        totals.accounts += sync.accountCount;
+        totals.transactions += sync.fetchedTransactions;
       }
       if (!silent) {
-        onToast(
-          created === 0 && skipped > 0
-            ? `Já estavam todas importadas (${skipped})`
-            : `${created} bancos importados${skipped > 0 ? ` · ${skipped} já existiam` : ''}`
-        );
+        if (totals.items === 0) {
+          onToast('Nenhum banco pra importar');
+        } else {
+          onToast(
+            `${totals.items} ${totals.items === 1 ? 'banco' : 'bancos'} · ${totals.accounts} carteiras · ${totals.transactions} transações`
+          );
+        }
       }
-      return created;
+      return totals;
     } catch (err) {
       onToast(`Falha ao listar: ${err instanceof Error ? err.message : String(err)}`);
-      return 0;
+      return totals;
     } finally {
       setImportingItems(false);
     }
@@ -293,11 +286,13 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
         return;
       }
       onToast('Token capturado!');
-      const created = await importItemsFromSession(true);
-      if (created > 0) {
-        onToast(`${created} bancos importados`);
+      const totals = await importItemsFromSession(true);
+      if (totals.items === 0) {
+        onToast('Sessão pronta — sem bancos pra importar');
       } else {
-        onToast('Sessão pronta — sem bancos novos pra importar');
+        onToast(
+          `${totals.items} ${totals.items === 1 ? 'banco' : 'bancos'} · ${totals.accounts} carteiras · ${totals.transactions} transações`
+        );
       }
     } finally {
       setAutoLoggingIn(false);
@@ -480,7 +475,7 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
                   onClick={() => importItemsFromSession(false)}
                   disabled={importingItems}
                 >
-                  {importingItems ? 'Importando…' : 'Importar bancos conectados'}
+                  {importingItems ? 'Importando…' : 'Importar tudo (bancos + carteiras + transações)'}
                 </Button>
                 <Button
                   type="button"
