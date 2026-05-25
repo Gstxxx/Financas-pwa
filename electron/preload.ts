@@ -34,8 +34,21 @@ const desktop = {
     ipcRenderer.invoke('app:setAutoStart', enabled) as Promise<boolean>,
   quit: () => ipcRenderer.invoke('app:quit'),
   openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
-  notify: (payload: { title: string; body: string; tag?: string }) =>
+  notify: (payload: { title: string; body: string; tag?: string; targetUrl?: string }) =>
     ipcRenderer.invoke('notify:show', payload) as Promise<boolean>,
+  /** True when the main process is running its own due-bill scheduler. The
+   * renderer hook reads this flag and skips its own toast emission to avoid
+   * double-notifying the user. */
+  hasBackgroundScheduler: true,
+  /** Subscribe to navigation requests pushed from main (e.g. when a
+   * notification toast is clicked). Returns an unsubscribe fn. */
+  onNavTo: (cb: (url: string) => void): (() => void) => {
+    const handler = (_e: unknown, url: string) => cb(url);
+    ipcRenderer.on('nav:to', handler);
+    return () => {
+      ipcRenderer.off('nav:to', handler);
+    };
+  },
   platform: process.platform,
 };
 

@@ -8,11 +8,17 @@ import { StackedBar } from '@/components/charts/StackedBar';
 interface ExpenseBreakdownProps {
   month: number;
   year: number;
+  /** Optional entity inclusion filter. Empty/undefined = all entities. */
+  entityFilter?: Set<string>;
 }
 
-export function ExpenseBreakdown({ month, year }: ExpenseBreakdownProps) {
+export function ExpenseBreakdown({ month, year, entityFilter }: ExpenseBreakdownProps) {
   const { getBreakdown } = useFinanceData();
-  const breakdown = useMemo(() => getBreakdown(month, year), [getBreakdown, month, year]);
+  const breakdown = useMemo(() => {
+    const rows = getBreakdown(month, year);
+    if (!entityFilter || entityFilter.size === 0) return rows;
+    return rows.filter((r) => entityFilter.has(r.entityId));
+  }, [getBreakdown, month, year, entityFilter]);
 
   if (breakdown.length === 0) {
     return (

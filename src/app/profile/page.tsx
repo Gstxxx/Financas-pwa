@@ -6,6 +6,7 @@ import { SettingsForm } from '@/components/profile/SettingsForm';
 import { AppearanceSection } from '@/components/profile/AppearanceSection';
 import { ExportSection } from '@/components/profile/ExportSection';
 import { DesktopSection } from '@/components/profile/DesktopSection';
+import { ShortcutsSection } from '@/components/profile/ShortcutsSection';
 import { UpdateSection } from '@/components/profile/UpdateSection';
 import { DangerZone } from '@/components/profile/DangerZone';
 import { useToastContext } from '@/lib/contexts/ToastContext';
@@ -22,6 +23,7 @@ export default function ProfilePage() {
       <AppearanceSection />
       <ExportSection onToast={toast} />
       <DesktopSection />
+      <ShortcutsSection />
       <UpdateSection />
       <DangerZone onToast={toast} />
 

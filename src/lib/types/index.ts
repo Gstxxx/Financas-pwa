@@ -77,6 +77,9 @@ export interface FinanceState {
   budgets: Budget[];
   goals: Goal[];
   incomes: Income[];
+  /** Map of `${debtId}@${dueDate}` -> ISO until-date. Bill is hidden from
+   * due-soon checks and notifications while now < snoozedUntil. */
+  snoozes: Record<string, string>;
   isHydrated: boolean;
 }
 
@@ -97,6 +100,8 @@ export type FinanceAction =
   | { type: 'ADD_INCOME'; payload: Omit<Income, 'id' | 'createdAt'> }
   | { type: 'UPDATE_INCOME'; payload: { id: string } & Partial<Income> }
   | { type: 'DELETE_INCOME'; payload: string }
+  | { type: 'SNOOZE_BILL'; payload: { billKey: string; until: string } }
+  | { type: 'UNSNOOZE_BILL'; payload: { billKey: string } }
   | { type: 'RESET_ALL' }
   | { type: 'IMPORT_DATA'; payload: Omit<FinanceState, 'isHydrated'> };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Container } from '@/components/layout/Container';
 import { PageHead } from '@/components/ui/PageHead';
 import { AdaptiveFab } from '@/components/layout/AdaptiveFab';
@@ -12,12 +12,31 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { DebtForm } from '@/components/debts/DebtForm';
 import { IncomeForm } from '@/components/home/IncomeForm';
 import { useToastContext } from '@/lib/contexts/ToastContext';
+import { useQueryFlag } from '@/lib/hooks/useQueryFlag';
 import { fmtMonthYear, getCurrentMonth, getCurrentYear, getGreeting } from '@/lib/utils';
 
 export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <Container width="wide">
+          <PageHead overline="" title="Suas finanças" />
+        </Container>
+      }
+    >
+      <HomePageInner />
+    </Suspense>
+  );
+}
+
+function HomePageInner() {
   const [showAddDebt, setShowAddDebt] = useState(false);
   const [showAddIncome, setShowAddIncome] = useState(false);
   const { toast } = useToastContext();
+
+  useQueryFlag('income', () => setShowAddIncome(true));
+  useQueryFlag('new', () => setShowAddDebt(true));
+
   const overline = `${getGreeting()} · ${fmtMonthYear(getCurrentMonth(), getCurrentYear())}`;
 
   return (

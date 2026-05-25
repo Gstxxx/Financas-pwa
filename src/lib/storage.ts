@@ -126,4 +126,6 @@ export const STORAGE_KEYS = {
   LEGACY_CONTAS: 'contas',
   INSTALL_DISMISSED: 'install_dismissed',
   DISCORD_WEBHOOK: 'finance_discord_webhook',
+  SNOOZES: 'finance_snoozes',
+  ANALYSIS_FILTERS: 'finance_analysis_filters',
 } as const;

@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
 import {
   getNextUnpaidInstallment,
@@ -44,6 +45,9 @@ export function DebtList({ sort = 'venc' }: DebtListProps) {
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const month = getCurrentMonth();
   const year = getCurrentYear();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const items = useMemo<ResolvedDebt[]>(() => {
     const out: ResolvedDebt[] = [];
@@ -84,6 +88,22 @@ export function DebtList({ sort = 'venc' }: DebtListProps) {
     }
     return sorted;
   }, [debts, installments, month, year, sort]);
+
+  // Open the BottomSheet for ?focus=<debtId> (set by background-toast
+  // clicks and keyboard shortcuts). Strip the param afterward so a refresh
+  // doesn't keep re-opening it.
+  useEffect(() => {
+    const focusId = searchParams.get('focus');
+    if (!focusId) return;
+    const match = items.find((it) => it.debt.id === focusId);
+    if (match) {
+      setSelectedDebt(match);
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('focus');
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }
+  }, [searchParams, items, router, pathname]);
 
   if (debts.length === 0) {
     return (

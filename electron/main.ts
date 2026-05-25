@@ -14,6 +14,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { initDb, kvLoadAll, kvSetRaw, kvDelete, kvReset, closeDb } from './db';
 import { initAutoUpdater } from './updater';
+import { initNotificationScheduler } from './scheduler';
 
 const isDev = !app.isPackaged || process.env.ELECTRON_DEV === '1';
 const startedHidden = process.argv.includes('--hidden');
@@ -248,11 +249,12 @@ function registerIpc() {
 
   ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized() ?? false);
 
-  // Windows toast for upcoming/overdue bills. Renderer pre-formats the
-  // strings (status labels, BRL totals) and dedupes via SENT_KEY storage.
+  // Legacy fallback: renderer can still request a toast (e.g. for one-off
+  // notifications outside the scheduler). The main-process scheduler is
+  // now the primary path for due-bill toasts.
   ipcMain.handle(
     'notify:show',
-    (_e, payload: { title: string; body: string; tag?: string }) => {
+    (_e, payload: { title: string; body: string; tag?: string; targetUrl?: string }) => {
       if (!Notification.isSupported()) return false;
       const n = new Notification({
         title: payload.title,
@@ -260,19 +262,29 @@ function registerIpc() {
         icon: getAppIconPath(),
         silent: false,
       });
-      n.on('click', () => {
-        if (!mainWindow) {
-          createWindow();
-          return;
-        }
-        if (mainWindow.isMinimized()) mainWindow.restore();
-        mainWindow.show();
-        mainWindow.focus();
-      });
+      n.on('click', () => activateForUrl(payload.targetUrl ?? '/'));
       n.show();
       return true;
     }
   );
+}
+
+function activateForUrl(targetUrl: string): void {
+  if (!mainWindow) {
+    createWindow();
+    // createWindow reassigns the module-level mainWindow; re-grab it here
+    // so TS sees the new value and we can safely subscribe to load events.
+    const win = mainWindow as BrowserWindow | null;
+    if (!win) return;
+    win.webContents.once('did-finish-load', () => {
+      win.webContents.send('nav:to', targetUrl);
+    });
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  mainWindow.webContents.send('nav:to', targetUrl);
 }
 
 app.whenReady().then(() => {
@@ -298,6 +310,11 @@ app.whenReady().then(() => {
   initAutoUpdater({
     getMainWindow: () => mainWindow,
     iconPath: getAppIconPath(),
+  });
+
+  initNotificationScheduler({
+    iconPath: getAppIconPath(),
+    onActivate: (url) => activateForUrl(url),
   });
 
   app.on('activate', () => {

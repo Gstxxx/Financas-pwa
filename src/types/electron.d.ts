@@ -15,7 +15,16 @@ interface ElectronDesktopAPI {
   setAutoStart(enabled: boolean): Promise<boolean>;
   quit(): Promise<void>;
   openExternal(url: string): Promise<void>;
-  notify(payload: { title: string; body: string; tag?: string }): Promise<boolean>;
+  notify(payload: {
+    title: string;
+    body: string;
+    tag?: string;
+    targetUrl?: string;
+  }): Promise<boolean>;
+  /** True when the main process has its own due-bill scheduler. The
+   * renderer hook reads this to avoid double-notifying. */
+  hasBackgroundScheduler: boolean;
+  onNavTo(cb: (url: string) => void): () => void;
   platform: NodeJS.Platform;
 }
 

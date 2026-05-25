@@ -32,14 +32,24 @@ function diffDaysFromToday(dueISO: string): number {
 /**
  * Returns the bills that are unpaid and either overdue or due within the
  * next `daysAhead` days. Includes both recurring and parcelado debts.
+ * Snoozed bills are skipped while the snooze is still in effect.
  */
 export function getBillsDueSoon(
-  state: Pick<FinanceState, 'debts' | 'installments'>,
+  state: Pick<FinanceState, 'debts' | 'installments'> & { snoozes?: Record<string, string> },
   daysAhead = 1
 ): DueBill[] {
   const out: DueBill[] = [];
   const month = getCurrentMonth();
   const year = getCurrentYear();
+  const snoozes = state.snoozes ?? {};
+  const now = Date.now();
+
+  const isSnoozed = (key: string): boolean => {
+    const iso = snoozes[key];
+    if (!iso) return false;
+    const t = new Date(iso).getTime();
+    return !isNaN(t) && t > now;
+  };
 
   for (const debt of state.debts) {
     if (debt.isRecurring) {
@@ -48,13 +58,10 @@ export function getBillsDueSoon(
       if (paid) continue;
       const dueDate = `${year}-${String(month).padStart(2, '0')}-${String(debt.dueDay).padStart(2, '0')}`;
       const daysAway = diffDaysFromToday(dueDate);
+      const key = `${debt.id}@${dueDate}`;
+      if (isSnoozed(key)) continue;
       if (daysAway >= -7 && daysAway <= daysAhead) {
-        out.push({
-          key: `${debt.id}@${dueDate}`,
-          debt,
-          dueDate,
-          daysAway,
-        });
+        out.push({ key, debt, dueDate, daysAway });
       }
     } else {
       const next = state.installments
@@ -62,14 +69,10 @@ export function getBillsDueSoon(
         .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
       if (!next) continue;
       const daysAway = diffDaysFromToday(next.dueDate);
+      const key = `${debt.id}@${next.dueDate}`;
+      if (isSnoozed(key)) continue;
       if (daysAway >= -7 && daysAway <= daysAhead) {
-        out.push({
-          key: `${debt.id}@${next.dueDate}`,
-          debt,
-          installment: next,
-          dueDate: next.dueDate,
-          daysAway,
-        });
+        out.push({ key, debt, installment: next, dueDate: next.dueDate, daysAway });
       }
     }
   }
