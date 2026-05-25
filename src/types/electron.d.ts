@@ -25,6 +25,8 @@ interface ElectronDesktopAPI {
    * renderer hook reads this to avoid double-notifying. */
   hasBackgroundScheduler: boolean;
   onNavTo(cb: (url: string) => void): () => void;
+  chooseBackupFolder(): Promise<string | null>;
+  writeBackup(payload: { folder: string; json: string }): Promise<string | null>;
   platform: NodeJS.Platform;
 }
 

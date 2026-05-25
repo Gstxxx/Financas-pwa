@@ -5,7 +5,7 @@ import { useFinanceData } from '@/lib/contexts/FinanceContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { I } from '@/components/icons/I';
-import { downloadJSON, importFromJSON, exportToDiscord } from '@/lib/services/export';
+import { downloadCSV, downloadJSON, importFromJSON, exportToDiscord } from '@/lib/services/export';
 import { Storage, STORAGE_KEYS } from '@/lib/storage';
 
 interface ExportSectionProps {
@@ -13,7 +13,7 @@ interface ExportSectionProps {
 }
 
 export function ExportSection({ onToast }: ExportSectionProps) {
-  const { user, entities, debts, installments, budgets, goals, incomes, snoozes, dispatch } = useFinanceData();
+  const { user, entities, debts, installments, budgets, goals, incomes, snoozes, accounts, recurringIncomes, transfers, dispatch } = useFinanceData();
   const [webhookUrl, setWebhookUrl] = useState('');
   const [sending, setSending] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -23,11 +23,16 @@ export function ExportSection({ onToast }: ExportSectionProps) {
     if (saved) setWebhookUrl(saved);
   }, []);
 
-  const stateData = { user, entities, debts, installments, budgets, goals, incomes, snoozes };
+  const stateData = { user, entities, debts, installments, budgets, goals, incomes, snoozes, accounts, recurringIncomes, transfers };
 
   const handleExport = () => {
     downloadJSON(stateData);
     onToast('Backup exportado!');
+  };
+
+  const handleExportCSV = () => {
+    downloadCSV(stateData);
+    onToast('CSV exportado!');
   };
 
   const handleImport = () => {
@@ -79,6 +84,9 @@ export function ExportSection({ onToast }: ExportSectionProps) {
         <div style={{ display: 'grid', gap: 10 }}>
           <Button type="button" variant="ghost" onClick={handleExport}>
             <I.download size={15} color="var(--ink-mid)" /> Exportar JSON
+          </Button>
+          <Button type="button" variant="ghost" onClick={handleExportCSV}>
+            <I.download size={15} color="var(--ink-mid)" /> Exportar CSV (transações)
           </Button>
           <Button type="button" variant="ghost" onClick={handleImport}>
             <I.upload size={15} color="var(--ink-mid)" /> Importar JSON

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { FinanceState, FinanceAction, User, Debt, Installment, Entity, Income, Goal } from '@/lib/types';
+import { FinanceState, FinanceAction, User, Debt, Installment, Entity, Income, Goal, Account, RecurringIncome, Transfer } from '@/lib/types';
 import { Storage, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, hashHue } from '@/lib/utils';
 import { generateInstallments, isRecurringActiveForMonth } from '@/lib/services/installment';
@@ -46,8 +46,109 @@ const INITIAL_STATE: FinanceState = {
   goals: [],
   incomes: [],
   snoozes: {},
+  accounts: [],
+  recurringIncomes: [],
+  transfers: [],
   isHydrated: false,
 };
+
+function monthKey(month: number, year: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+/**
+ * Materialize Income rows for each active RecurringIncome up to the current
+ * month. Idempotent — skips months already covered (sourceRecurringId match
+ * or lastGeneratedMonth >= target).
+ */
+function generateMissingRecurringIncomes(
+  recurring: RecurringIncome[],
+  incomes: Income[]
+): { incomes: Income[]; recurring: RecurringIncome[]; created: number } {
+  const now = new Date();
+  const curMonth = now.getMonth() + 1;
+  const curYear = now.getFullYear();
+  const nowISO = now.toISOString();
+
+  const newIncomes: Income[] = [];
+  let created = 0;
+
+  const updatedRecurring = recurring.map((r) => {
+    if (!r.isActive) return r;
+
+    // Walk month-by-month from startMonth/startYear to current.
+    let m = r.startMonth;
+    let y = r.startYear;
+    let lastGenerated = r.lastGeneratedMonth ?? '';
+    const guard = 12 * 5; // 5 years of catch-up max
+    let steps = 0;
+
+    while ((y < curYear || (y === curYear && m <= curMonth)) && steps < guard) {
+      const key = monthKey(m, y);
+      const alreadyPresent =
+        incomes.some(
+          (inc) => inc.sourceRecurringId === r.id && inc.date.startsWith(key)
+        ) ||
+        newIncomes.some(
+          (inc) => inc.sourceRecurringId === r.id && inc.date.startsWith(key)
+        );
+      if (!alreadyPresent && key > lastGenerated) {
+        // Use min(dueDay, daysInMonth) for safety.
+        const daysInMonth = new Date(y, m, 0).getDate();
+        const day = Math.min(r.dueDay, daysInMonth);
+        newIncomes.push({
+          id: `${r.id}-${key}`,
+          description: r.name,
+          amount: r.amount,
+          date: `${key}-${String(day).padStart(2, '0')}`,
+          direction: 'entrada',
+          sourceRecurringId: r.id,
+          createdAt: nowISO,
+        });
+        created++;
+        lastGenerated = key;
+      }
+      m++;
+      if (m > 12) {
+        m = 1;
+        y++;
+      }
+      steps++;
+    }
+
+    return lastGenerated !== r.lastGeneratedMonth
+      ? { ...r, lastGeneratedMonth: lastGenerated }
+      : r;
+  });
+
+  return {
+    incomes: newIncomes.length > 0 ? [...incomes, ...newIncomes] : incomes,
+    recurring: updatedRecurring,
+    created,
+  };
+}
+
+/**
+ * v1→v2 migration: if there are no accounts yet, create a "Conta principal"
+ * holding the existing user.currentBalance (any value, including 0). After
+ * this runs, SET_USER on currentBalance keeps mirroring to that primary
+ * account so SettingsForm doesn't have to know about accounts.
+ */
+function ensureAccountsMigration(accounts: Account[], user: User): Account[] {
+  if (accounts.length > 0) return accounts;
+  const now = new Date().toISOString();
+  return [
+    {
+      id: 'account-primary',
+      name: 'Conta principal',
+      type: 'checking',
+      currentBalance: user.currentBalance || 0,
+      hue: hashHue('Conta principal'),
+      isPrimary: true,
+      createdAt: now,
+    },
+  ];
+}
 
 function pruneSnoozes(snoozes: Record<string, string>): Record<string, string> {
   const now = Date.now();
@@ -64,8 +165,18 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
     case 'HYDRATE':
       return { ...action.payload, isHydrated: true };
 
-    case 'SET_USER':
-      return { ...state, user: { ...state.user, ...action.payload } };
+    case 'SET_USER': {
+      const nextUser = { ...state.user, ...action.payload };
+      // Mirror currentBalance into the primary account so /accounts and
+      // SettingsForm stay in sync without the user toggling between them.
+      let nextAccounts = state.accounts;
+      if (action.payload.currentBalance !== undefined) {
+        nextAccounts = state.accounts.map((a) =>
+          a.isPrimary ? { ...a, currentBalance: action.payload.currentBalance! } : a
+        );
+      }
+      return { ...state, user: nextUser, accounts: nextAccounts };
+    }
 
     case 'ADD_ENTITY': {
       const entity: Entity = {
@@ -285,11 +396,142 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
       return { ...state, snoozes: rest };
     }
 
+    case 'ADD_ACCOUNT': {
+      const account: Account = {
+        ...action.payload,
+        id: generateId(),
+        createdAt: new Date().toISOString(),
+      };
+      return { ...state, accounts: [...state.accounts, ensureHue(account)] };
+    }
+
+    case 'UPDATE_ACCOUNT': {
+      const { id, ...updates } = action.payload;
+      const nextAccounts = state.accounts.map((a) => (a.id === id ? { ...a, ...updates } : a));
+      // Keep User.currentBalance in sync when the primary account's balance
+      // changes, so the rest of the app reading User still sees fresh data.
+      const updated = nextAccounts.find((a) => a.id === id);
+      const nextUser =
+        updated?.isPrimary && updates.currentBalance !== undefined
+          ? { ...state.user, currentBalance: updates.currentBalance }
+          : state.user;
+      return { ...state, accounts: nextAccounts, user: nextUser };
+    }
+
+    case 'DELETE_ACCOUNT': {
+      // Refuse to delete the primary account — it's the legacy anchor for
+      // user.currentBalance. Archive is the right action there.
+      const target = state.accounts.find((a) => a.id === action.payload);
+      if (target?.isPrimary) return state;
+      return { ...state, accounts: state.accounts.filter((a) => a.id !== action.payload) };
+    }
+
+    case 'ADD_RECURRING_INCOME': {
+      const r: RecurringIncome = {
+        ...action.payload,
+        id: generateId(),
+        createdAt: new Date().toISOString(),
+      };
+      const next = generateMissingRecurringIncomes(
+        [...state.recurringIncomes, r],
+        state.incomes
+      );
+      return {
+        ...state,
+        recurringIncomes: next.recurring,
+        incomes: next.incomes,
+      };
+    }
+
+    case 'UPDATE_RECURRING_INCOME': {
+      const { id, ...updates } = action.payload;
+      const recurringIncomes = state.recurringIncomes.map((r) =>
+        r.id === id ? { ...r, ...updates } : r
+      );
+      return { ...state, recurringIncomes };
+    }
+
+    case 'DELETE_RECURRING_INCOME': {
+      const id = action.payload;
+      // Keep already-materialized Incomes — only nuke the template.
+      return {
+        ...state,
+        recurringIncomes: state.recurringIncomes.filter((r) => r.id !== id),
+      };
+    }
+
+    case 'GENERATE_RECURRING_INCOMES': {
+      const next = generateMissingRecurringIncomes(state.recurringIncomes, state.incomes);
+      if (next.created === 0) return state;
+      return { ...state, incomes: next.incomes, recurringIncomes: next.recurring };
+    }
+
+    case 'ADD_TRANSFER': {
+      const transfer: Transfer = {
+        ...action.payload,
+        id: generateId(),
+        createdAt: new Date().toISOString(),
+      };
+      // Update both account balances atomically.
+      const accounts = state.accounts.map((a) => {
+        if (a.id === transfer.fromAccountId)
+          return { ...a, currentBalance: (a.currentBalance || 0) - transfer.amount };
+        if (a.id === transfer.toAccountId)
+          return { ...a, currentBalance: (a.currentBalance || 0) + transfer.amount };
+        return a;
+      });
+      // Mirror to user.currentBalance if the primary was touched.
+      const primary = accounts.find((a) => a.isPrimary);
+      const user =
+        primary && primary.currentBalance !== state.user.currentBalance
+          ? { ...state.user, currentBalance: primary.currentBalance }
+          : state.user;
+      return {
+        ...state,
+        transfers: [...state.transfers, transfer],
+        accounts,
+        user,
+      };
+    }
+
+    case 'DELETE_TRANSFER': {
+      const tr = state.transfers.find((t) => t.id === action.payload);
+      if (!tr) return state;
+      // Reverse the balance impact.
+      const accounts = state.accounts.map((a) => {
+        if (a.id === tr.fromAccountId)
+          return { ...a, currentBalance: (a.currentBalance || 0) + tr.amount };
+        if (a.id === tr.toAccountId)
+          return { ...a, currentBalance: (a.currentBalance || 0) - tr.amount };
+        return a;
+      });
+      const primary = accounts.find((a) => a.isPrimary);
+      const user =
+        primary && primary.currentBalance !== state.user.currentBalance
+          ? { ...state.user, currentBalance: primary.currentBalance }
+          : state.user;
+      return {
+        ...state,
+        transfers: state.transfers.filter((t) => t.id !== action.payload),
+        accounts,
+        user,
+      };
+    }
+
     case 'RESET_ALL':
       return { ...INITIAL_STATE, isHydrated: true };
 
-    case 'IMPORT_DATA':
-      return { ...action.payload, snoozes: action.payload.snoozes ?? {}, isHydrated: true };
+    case 'IMPORT_DATA': {
+      const importedAccounts = action.payload.accounts ?? [];
+      return {
+        ...action.payload,
+        snoozes: action.payload.snoozes ?? {},
+        accounts: ensureAccountsMigration(importedAccounts, action.payload.user),
+        recurringIncomes: action.payload.recurringIncomes ?? [],
+        transfers: action.payload.transfers ?? [],
+        isHydrated: true,
+      };
+    }
 
     default:
       return state;
@@ -325,6 +567,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           goals: [],
           incomes: [],
           snoozes: {},
+          accounts: ensureAccountsMigration([], migrated.user),
+          recurringIncomes: [],
+          transfers: [],
         },
       });
       return;
@@ -342,10 +587,32 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       i.direction ? i : { ...i, direction: 'entrada' as const }
     );
     const snoozes = pruneSnoozes(Storage.get<Record<string, string>>(STORAGE_KEYS.SNOOZES) || {});
+    const accounts = ensureAccountsMigration(
+      (Storage.get<Account[]>(STORAGE_KEYS.ACCOUNTS) || []).map(ensureHue),
+      user
+    );
+    const recurringIncomes = Storage.get<RecurringIncome[]>(STORAGE_KEYS.RECURRING_INCOMES) || [];
+    const transfers = Storage.get<Transfer[]>(STORAGE_KEYS.TRANSFERS) || [];
+
+    // Auto-fill any missing Income rows that the recurring templates should
+    // have generated while the app was closed.
+    const gen = generateMissingRecurringIncomes(recurringIncomes, incomes);
 
     dispatch({
       type: 'HYDRATE',
-      payload: { user, entities, debts, installments, budgets, goals, incomes, snoozes } as FinanceState,
+      payload: {
+        user,
+        entities,
+        debts,
+        installments,
+        budgets,
+        goals,
+        incomes: gen.incomes,
+        snoozes,
+        accounts,
+        recurringIncomes: gen.recurring,
+        transfers,
+      } as FinanceState,
     });
   }, []);
 
@@ -360,6 +627,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     Storage.set(STORAGE_KEYS.GOALS, state.goals);
     Storage.set(STORAGE_KEYS.INCOMES, state.incomes);
     Storage.set(STORAGE_KEYS.SNOOZES, state.snoozes);
+    Storage.set(STORAGE_KEYS.ACCOUNTS, state.accounts);
+    Storage.set(STORAGE_KEYS.RECURRING_INCOMES, state.recurringIncomes);
+    Storage.set(STORAGE_KEYS.TRANSFERS, state.transfers);
   }, [state]);
 
   return (

@@ -36,6 +36,10 @@ const desktop = {
   openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
   notify: (payload: { title: string; body: string; tag?: string; targetUrl?: string }) =>
     ipcRenderer.invoke('notify:show', payload) as Promise<boolean>,
+  chooseBackupFolder: () =>
+    ipcRenderer.invoke('backup:chooseFolder') as Promise<string | null>,
+  writeBackup: (payload: { folder: string; json: string }) =>
+    ipcRenderer.invoke('backup:writeJson', payload) as Promise<string | null>,
   /** True when the main process is running its own due-bill scheduler. The
    * renderer hook reads this flag and skips its own toast emission to avoid
    * double-notifying the user. */

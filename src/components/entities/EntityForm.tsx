@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { HUE_PALETTE, getInitialGlyph, hashHue } from '@/lib/utils';
+import { ENTITY_ICONS, HUE_PALETTE, getEntityGlyph, hashHue } from '@/lib/utils';
 import type { Entity } from '@/lib/types';
 
 interface EntityFormProps {
@@ -20,19 +20,21 @@ export function EntityForm({ onClose, onSuccess, initialEntity }: EntityFormProp
   const [hue, setHue] = useState<number>(
     initialEntity?.hue ?? hashHue(initialEntity?.name ?? '')
   );
+  const [icon, setIcon] = useState<string>(initialEntity?.icon ?? '');
 
   const previewHue = useMemo(() => hue || hashHue(name), [hue, name]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    const cleanIcon = icon.trim() || undefined;
     if (isEdit && initialEntity) {
       dispatch({
         type: 'UPDATE_ENTITY',
-        payload: { id: initialEntity.id, name: name.trim(), hue },
+        payload: { id: initialEntity.id, name: name.trim(), hue, icon: cleanIcon },
       });
     } else {
-      dispatch({ type: 'ADD_ENTITY', payload: { name: name.trim(), hue } });
+      dispatch({ type: 'ADD_ENTITY', payload: { name: name.trim(), hue, icon: cleanIcon } });
     }
     onSuccess();
   };
@@ -50,11 +52,62 @@ export function EntityForm({ onClose, onSuccess, initialEntity }: EntityFormProp
       />
 
       <div style={{ marginBottom: 16 }}>
+        <label className="field-label">Ícone (opcional)</label>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setIcon('')}
+            aria-label="Sem ícone"
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              background: 'var(--surface)',
+              border: `1px solid ${icon === '' ? 'var(--accent)' : 'var(--hair)'}`,
+              color: 'var(--ink-mute)',
+              fontSize: 11,
+              fontFamily: 'var(--f-mono)',
+              cursor: 'pointer',
+            }}
+          >
+            —
+          </button>
+          {ENTITY_ICONS.map((emo) => {
+            const active = emo === icon;
+            return (
+              <button
+                key={emo}
+                type="button"
+                onClick={() => setIcon(emo)}
+                aria-label={`Ícone ${emo}`}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  background: active ? 'var(--surface-2)' : 'var(--surface)',
+                  border: `1px solid ${active ? 'var(--accent)' : 'var(--hair)'}`,
+                  fontSize: 18,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'transform 0.12s ease',
+                  transform: active ? 'scale(1.06)' : 'scale(1)',
+                }}
+              >
+                {emo}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
         <label className="field-label">Cor</label>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {HUE_PALETTE.map((h) => {
             const active = h === hue;
-            const glyph = getInitialGlyph(name);
+            const glyph = getEntityGlyph({ name, icon });
             return (
               <button
                 key={h}

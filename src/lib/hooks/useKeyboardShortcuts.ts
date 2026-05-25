@@ -33,11 +33,12 @@ export function useKeyboardShortcuts() {
       const NAV: Record<string, string> = {
         '1': '/home/',
         '2': '/debts/',
-        '3': '/entities/',
-        '4': '/goals/',
-        '5': '/analysis/',
-        '6': '/stats/',
-        '7': '/profile/',
+        '3': '/accounts/',
+        '4': '/entities/',
+        '5': '/goals/',
+        '6': '/analysis/',
+        '7': '/stats/',
+        '8': '/profile/',
       };
       if (NAV[key]) {
         e.preventDefault();

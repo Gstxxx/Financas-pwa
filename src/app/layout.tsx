@@ -7,6 +7,7 @@ import { ToastProvider } from '@/lib/contexts/ToastContext';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { TitleBar } from '@/components/layout/TitleBar';
 import { NotificationScheduler } from '@/components/layout/NotificationScheduler';
+import { PinGate } from '@/components/layout/PinGate';
 import { PWARegister } from '@/components/layout/PWARegister';
 import '@/styles/globals.css';
 
@@ -68,14 +69,16 @@ export default function RootLayout({
       </head>
       <body className="font-sans">
         <TitleBar />
-        <FinanceProvider>
-          <ToastProvider>
-            <NotificationScheduler />
-            {children}
-            <BottomNav />
-            <PWARegister />
-          </ToastProvider>
-        </FinanceProvider>
+        <PinGate>
+          <FinanceProvider>
+            <ToastProvider>
+              <NotificationScheduler />
+              {children}
+              <BottomNav />
+              <PWARegister />
+            </ToastProvider>
+          </FinanceProvider>
+        </PinGate>
       </body>
     </html>
   );

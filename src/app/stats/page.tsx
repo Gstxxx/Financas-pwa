@@ -10,10 +10,18 @@ import { Sparkline } from '@/components/charts/Sparkline';
 import { Ring } from '@/components/charts/Ring';
 import { Donut } from '@/components/charts/Donut';
 import { useFinanceData } from '@/lib/contexts/FinanceContext';
+import { Button } from '@/components/ui/Button';
+import { I } from '@/components/icons/I';
+import { downloadMonthlyReport } from '@/lib/services/pdfReport';
 import { fmtBRL, getCurrentMonth, getCurrentYear } from '@/lib/utils';
 
 export default function StatsPage() {
   const {
+    user,
+    accounts,
+    entities,
+    incomes,
+    recurringIncomes,
     debts,
     installments,
     getMonthlyExpenses,
@@ -21,6 +29,14 @@ export default function StatsPage() {
     getBreakdown,
     getTotalExpenses,
   } = useFinanceData();
+
+  const handleExportPdf = () => {
+    downloadMonthlyReport({
+      state: { user, accounts, entities, incomes, recurringIncomes, debts, installments },
+      month: getCurrentMonth(),
+      year: getCurrentYear(),
+    });
+  };
 
   const year = getCurrentYear();
   const month = getCurrentMonth();
@@ -46,6 +62,12 @@ export default function StatsPage() {
   return (
     <Container>
       <PageHead overline="Visão detalhada" title="Estatísticas" backHref="/analysis" />
+
+      <div style={{ padding: '0 22px 14px' }}>
+        <Button variant="ghost" type="button" onClick={handleExportPdf}>
+          <I.download size={14} color="var(--ink-mid)" /> Exportar PDF do mês
+        </Button>
+      </div>
 
       <div
         style={{

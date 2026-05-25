@@ -9,12 +9,15 @@ import {
   Menu,
   nativeImage,
   Notification,
+  dialog,
+  globalShortcut,
 } from 'electron';
 import path from 'node:path';
+import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { initDb, kvLoadAll, kvSetRaw, kvDelete, kvReset, closeDb } from './db';
 import { initAutoUpdater } from './updater';
-import { initNotificationScheduler } from './scheduler';
+import { initNotificationScheduler, getTraySummary } from './scheduler';
 
 const isDev = !app.isPackaged || process.env.ELECTRON_DEV === '1';
 const startedHidden = process.argv.includes('--hidden');
@@ -119,26 +122,32 @@ function createWindow() {
   });
 }
 
-function createTray() {
-  const iconPath = getAppIconPath();
-  const fallback = nativeImage.createEmpty();
-  let image = nativeImage.createFromPath(iconPath);
-  if (image.isEmpty()) image = fallback;
+function fmtBRL(value: number): string {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
 
-  tray = new Tray(image);
-  tray.setToolTip('Financas');
+function rebuildTrayMenu() {
+  if (!tray) return;
+  const summary = getTraySummary();
+  const summaryLabel =
+    summary.count === 0
+      ? 'Nada vencendo nos próximos 7 dias'
+      : `${summary.count} conta${summary.count === 1 ? '' : 's'} a vencer · ${fmtBRL(summary.total)}`;
 
   const menu = Menu.buildFromTemplate([
+    { label: summaryLabel, enabled: false },
+    { type: 'separator' },
     {
-      label: 'Abrir',
-      click: () => {
-        if (!mainWindow) createWindow();
-        else {
-          if (mainWindow.isMinimized()) mainWindow.restore();
-          mainWindow.show();
-          mainWindow.focus();
-        }
-      },
+      label: 'Abrir Financas',
+      click: () => activateForUrl('/home/'),
+    },
+    {
+      label: 'Adicionar despesa rápida',
+      click: () => activateForUrl('/debts/?new=1'),
+    },
+    {
+      label: 'Adicionar receita',
+      click: () => activateForUrl('/home/?income=1'),
     },
     { type: 'separator' },
     {
@@ -150,6 +159,20 @@ function createTray() {
     },
   ]);
   tray.setContextMenu(menu);
+  tray.setToolTip(`Financas · ${summaryLabel}`);
+}
+
+function createTray() {
+  const iconPath = getAppIconPath();
+  const fallback = nativeImage.createEmpty();
+  let image = nativeImage.createFromPath(iconPath);
+  if (image.isEmpty()) image = fallback;
+
+  tray = new Tray(image);
+  rebuildTrayMenu();
+  // Refresh every 5 min so the summary stays current without the renderer
+  // having to push updates.
+  setInterval(rebuildTrayMenu, 5 * 60 * 1000);
   tray.on('click', () => {
     if (!mainWindow) {
       createWindow();
@@ -160,6 +183,7 @@ function createTray() {
       mainWindow.show();
       mainWindow.focus();
     }
+    rebuildTrayMenu();
   });
 }
 
@@ -226,6 +250,52 @@ function registerIpc() {
   });
 
   ipcMain.handle('app:openExternal', (_e, url: string) => shell.openExternal(url));
+
+  // Folder picker for local backups (4.2). Renderer triggers a JSON save
+  // there; main writes the file with native fs to skip Chromium's download
+  // prompt.
+  ipcMain.handle('backup:chooseFolder', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Escolha a pasta de backup',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle(
+    'backup:writeJson',
+    (_e, payload: { folder: string; json: string }) => {
+      try {
+        if (!fs.existsSync(payload.folder)) {
+          fs.mkdirSync(payload.folder, { recursive: true });
+        }
+        const ts = new Date().toISOString().split('T')[0];
+        const file = path.join(payload.folder, `financas-backup-${ts}.json`);
+        fs.writeFileSync(file, payload.json, 'utf8');
+        // Keep last 30: walk the folder, sort, delete the rest.
+        const files = fs
+          .readdirSync(payload.folder)
+          .filter((f) => f.startsWith('financas-backup-') && f.endsWith('.json'))
+          .sort();
+        if (files.length > 30) {
+          for (const old of files.slice(0, files.length - 30)) {
+            try {
+              fs.unlinkSync(path.join(payload.folder, old));
+            } catch {
+              /* best-effort */
+            }
+          }
+        }
+        return file;
+      } catch (err) {
+        console.error('backup:writeJson failed', err);
+        return null;
+      }
+    }
+  );
+
+  ipcMain.handle('tray:getSummary', () => getTraySummary());
 
   // Frameless window controls — replace the native title bar buttons.
   ipcMain.handle('window:minimize', () => {
@@ -317,6 +387,53 @@ app.whenReady().then(() => {
     onActivate: (url) => activateForUrl(url),
   });
 
+  // Global hotkey: Ctrl+Shift+F brings Financas to the foreground from any
+  // app. Fails silently if the combo is already taken — user can disable
+  // it via the OS if it conflicts.
+  try {
+    globalShortcut.register('CommandOrControl+Shift+F', () => {
+      if (!mainWindow) {
+        createWindow();
+        return;
+      }
+      if (mainWindow.isVisible() && mainWindow.isFocused()) {
+        mainWindow.hide();
+      } else {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    });
+  } catch (err) {
+    console.error('globalShortcut register failed', err);
+  }
+
+  // Windows jump list — quick actions from the taskbar icon's right-click.
+  if (process.platform === 'win32') {
+    try {
+      app.setUserTasks([
+        {
+          program: process.execPath,
+          arguments: '--nav=/debts/?new=1',
+          title: 'Nova despesa',
+          description: 'Adicionar uma conta nova',
+          iconPath: process.execPath,
+          iconIndex: 0,
+        },
+        {
+          program: process.execPath,
+          arguments: '--nav=/home/?income=1',
+          title: 'Nova receita',
+          description: 'Lançar entrada manual',
+          iconPath: process.execPath,
+          iconIndex: 0,
+        },
+      ]);
+    } catch (err) {
+      console.error('setUserTasks failed', err);
+    }
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -332,5 +449,6 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
   closeDb();
 });

@@ -5,8 +5,12 @@ import { PageHead } from '@/components/ui/PageHead';
 import { SettingsForm } from '@/components/profile/SettingsForm';
 import { AppearanceSection } from '@/components/profile/AppearanceSection';
 import { ExportSection } from '@/components/profile/ExportSection';
+import { BackupSection } from '@/components/profile/BackupSection';
+import { CsvImportSection } from '@/components/profile/CsvImportSection';
+import { PinSection } from '@/components/profile/PinSection';
 import { DesktopSection } from '@/components/profile/DesktopSection';
 import { ShortcutsSection } from '@/components/profile/ShortcutsSection';
+import { RecurringIncomeSection } from '@/components/profile/RecurringIncomeSection';
 import { UpdateSection } from '@/components/profile/UpdateSection';
 import { DangerZone } from '@/components/profile/DangerZone';
 import { useToastContext } from '@/lib/contexts/ToastContext';
@@ -20,8 +24,12 @@ export default function ProfilePage() {
       <PageHead overline="Configurações" title="Perfil" />
 
       <SettingsForm onSave={() => toast('Configurações salvas!')} />
+      <RecurringIncomeSection />
       <AppearanceSection />
+      <PinSection onToast={toast} />
       <ExportSection onToast={toast} />
+      <CsvImportSection onToast={toast} />
+      <BackupSection onToast={toast} />
       <DesktopSection />
       <ShortcutsSection />
       <UpdateSection />
