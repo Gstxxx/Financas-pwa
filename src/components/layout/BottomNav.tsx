@@ -14,6 +14,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: '/home',     label: 'Home',       icon: 'home' },
   { href: '/debts',    label: 'Contas',     icon: 'list' },
+  { href: '/accounts', label: 'Carteiras',  icon: 'wallet' },
   { href: '/entities', label: 'Categorias', icon: 'folder' },
   { href: '/analysis', label: 'Análise',    icon: 'chart' },
   { href: '/profile',  label: 'Perfil',     icon: 'gear' },

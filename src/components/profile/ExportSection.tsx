@@ -13,7 +13,7 @@ interface ExportSectionProps {
 }
 
 export function ExportSection({ onToast }: ExportSectionProps) {
-  const { user, entities, debts, installments, budgets, goals, incomes, snoozes, dispatch } = useFinanceData();
+  const { user, entities, debts, installments, budgets, goals, incomes, snoozes, accounts, dispatch } = useFinanceData();
   const [webhookUrl, setWebhookUrl] = useState('');
   const [sending, setSending] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -23,7 +23,7 @@ export function ExportSection({ onToast }: ExportSectionProps) {
     if (saved) setWebhookUrl(saved);
   }, []);
 
-  const stateData = { user, entities, debts, installments, budgets, goals, incomes, snoozes };
+  const stateData = { user, entities, debts, installments, budgets, goals, incomes, snoozes, accounts };
 
   const handleExport = () => {
     downloadJSON(stateData);

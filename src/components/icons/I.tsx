@@ -196,6 +196,13 @@ export const I = {
       <path d="m5 12 5 5 9-11" />
     </IconBase>
   ),
+  wallet: (p: IconProps) => (
+    <IconBase {...p}>
+      <path d="M3 7a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+      <path d="M3 10h18" />
+      <circle cx="16" cy="14.5" r="1.2" />
+    </IconBase>
+  ),
 };
 
 export type IconKey = keyof typeof I;

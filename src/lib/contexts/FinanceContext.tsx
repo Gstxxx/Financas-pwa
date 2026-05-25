@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { FinanceState, FinanceAction, User, Debt, Installment, Entity, Income, Goal } from '@/lib/types';
+import { FinanceState, FinanceAction, User, Debt, Installment, Entity, Income, Goal, Account } from '@/lib/types';
 import { Storage, STORAGE_KEYS } from '@/lib/storage';
 import { generateId, hashHue } from '@/lib/utils';
 import { generateInstallments, isRecurringActiveForMonth } from '@/lib/services/installment';
@@ -46,8 +46,31 @@ const INITIAL_STATE: FinanceState = {
   goals: [],
   incomes: [],
   snoozes: {},
+  accounts: [],
   isHydrated: false,
 };
+
+/**
+ * v1→v2 migration: if there are no accounts yet, create a "Conta principal"
+ * holding the existing user.currentBalance (any value, including 0). After
+ * this runs, SET_USER on currentBalance keeps mirroring to that primary
+ * account so SettingsForm doesn't have to know about accounts.
+ */
+function ensureAccountsMigration(accounts: Account[], user: User): Account[] {
+  if (accounts.length > 0) return accounts;
+  const now = new Date().toISOString();
+  return [
+    {
+      id: 'account-primary',
+      name: 'Conta principal',
+      type: 'checking',
+      currentBalance: user.currentBalance || 0,
+      hue: hashHue('Conta principal'),
+      isPrimary: true,
+      createdAt: now,
+    },
+  ];
+}
 
 function pruneSnoozes(snoozes: Record<string, string>): Record<string, string> {
   const now = Date.now();
@@ -64,8 +87,18 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
     case 'HYDRATE':
       return { ...action.payload, isHydrated: true };
 
-    case 'SET_USER':
-      return { ...state, user: { ...state.user, ...action.payload } };
+    case 'SET_USER': {
+      const nextUser = { ...state.user, ...action.payload };
+      // Mirror currentBalance into the primary account so /accounts and
+      // SettingsForm stay in sync without the user toggling between them.
+      let nextAccounts = state.accounts;
+      if (action.payload.currentBalance !== undefined) {
+        nextAccounts = state.accounts.map((a) =>
+          a.isPrimary ? { ...a, currentBalance: action.payload.currentBalance! } : a
+        );
+      }
+      return { ...state, user: nextUser, accounts: nextAccounts };
+    }
 
     case 'ADD_ENTITY': {
       const entity: Entity = {
@@ -285,11 +318,48 @@ function financeReducer(state: FinanceState, action: FinanceAction): FinanceStat
       return { ...state, snoozes: rest };
     }
 
+    case 'ADD_ACCOUNT': {
+      const account: Account = {
+        ...action.payload,
+        id: generateId(),
+        createdAt: new Date().toISOString(),
+      };
+      return { ...state, accounts: [...state.accounts, ensureHue(account)] };
+    }
+
+    case 'UPDATE_ACCOUNT': {
+      const { id, ...updates } = action.payload;
+      const nextAccounts = state.accounts.map((a) => (a.id === id ? { ...a, ...updates } : a));
+      // Keep User.currentBalance in sync when the primary account's balance
+      // changes, so the rest of the app reading User still sees fresh data.
+      const updated = nextAccounts.find((a) => a.id === id);
+      const nextUser =
+        updated?.isPrimary && updates.currentBalance !== undefined
+          ? { ...state.user, currentBalance: updates.currentBalance }
+          : state.user;
+      return { ...state, accounts: nextAccounts, user: nextUser };
+    }
+
+    case 'DELETE_ACCOUNT': {
+      // Refuse to delete the primary account — it's the legacy anchor for
+      // user.currentBalance. Archive is the right action there.
+      const target = state.accounts.find((a) => a.id === action.payload);
+      if (target?.isPrimary) return state;
+      return { ...state, accounts: state.accounts.filter((a) => a.id !== action.payload) };
+    }
+
     case 'RESET_ALL':
       return { ...INITIAL_STATE, isHydrated: true };
 
-    case 'IMPORT_DATA':
-      return { ...action.payload, snoozes: action.payload.snoozes ?? {}, isHydrated: true };
+    case 'IMPORT_DATA': {
+      const importedAccounts = action.payload.accounts ?? [];
+      return {
+        ...action.payload,
+        snoozes: action.payload.snoozes ?? {},
+        accounts: ensureAccountsMigration(importedAccounts, action.payload.user),
+        isHydrated: true,
+      };
+    }
 
     default:
       return state;
@@ -325,6 +395,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           goals: [],
           incomes: [],
           snoozes: {},
+          accounts: ensureAccountsMigration([], migrated.user),
         },
       });
       return;
@@ -342,10 +413,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       i.direction ? i : { ...i, direction: 'entrada' as const }
     );
     const snoozes = pruneSnoozes(Storage.get<Record<string, string>>(STORAGE_KEYS.SNOOZES) || {});
+    const accounts = ensureAccountsMigration(
+      (Storage.get<Account[]>(STORAGE_KEYS.ACCOUNTS) || []).map(ensureHue),
+      user
+    );
 
     dispatch({
       type: 'HYDRATE',
-      payload: { user, entities, debts, installments, budgets, goals, incomes, snoozes } as FinanceState,
+      payload: { user, entities, debts, installments, budgets, goals, incomes, snoozes, accounts } as FinanceState,
     });
   }, []);
 
@@ -360,6 +435,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     Storage.set(STORAGE_KEYS.GOALS, state.goals);
     Storage.set(STORAGE_KEYS.INCOMES, state.incomes);
     Storage.set(STORAGE_KEYS.SNOOZES, state.snoozes);
+    Storage.set(STORAGE_KEYS.ACCOUNTS, state.accounts);
   }, [state]);
 
   return (

@@ -56,6 +56,24 @@ export interface Goal {
   createdAt: string;
 }
 
+/** Account type — checking, savings, cash, or credit card. Credit cards
+ * track a *negative* current balance (the open invoice). Future PRs will
+ * add closingDay/dueDay/creditLimit when CC handling lands. */
+export type AccountType = 'checking' | 'savings' | 'cash' | 'credit_card';
+
+export interface Account {
+  id: string;
+  name: string;
+  type: AccountType;
+  currentBalance: number;
+  hue?: number;
+  /** Set true on the account created by the v1→v2 migration so SET_USER
+   * with `currentBalance` keeps writing here for backward compat. */
+  isPrimary?: boolean;
+  archived?: boolean;
+  createdAt: string;
+}
+
 export type IncomeDirection = 'entrada' | 'saida';
 
 export interface Income {
@@ -80,6 +98,9 @@ export interface FinanceState {
   /** Map of `${debtId}@${dueDate}` -> ISO until-date. Bill is hidden from
    * due-soon checks and notifications while now < snoozedUntil. */
   snoozes: Record<string, string>;
+  /** Bank accounts / wallets / credit cards. Migrated from user.currentBalance
+   * on first run — see ensureAccountsMigration in FinanceContext. */
+  accounts: Account[];
   isHydrated: boolean;
 }
 
@@ -102,6 +123,9 @@ export type FinanceAction =
   | { type: 'DELETE_INCOME'; payload: string }
   | { type: 'SNOOZE_BILL'; payload: { billKey: string; until: string } }
   | { type: 'UNSNOOZE_BILL'; payload: { billKey: string } }
+  | { type: 'ADD_ACCOUNT'; payload: Omit<Account, 'id' | 'createdAt'> }
+  | { type: 'UPDATE_ACCOUNT'; payload: { id: string } & Partial<Account> }
+  | { type: 'DELETE_ACCOUNT'; payload: string }
   | { type: 'RESET_ALL' }
   | { type: 'IMPORT_DATA'; payload: Omit<FinanceState, 'isHydrated'> };
 

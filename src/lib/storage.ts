@@ -128,4 +128,5 @@ export const STORAGE_KEYS = {
   DISCORD_WEBHOOK: 'finance_discord_webhook',
   SNOOZES: 'finance_snoozes',
   ANALYSIS_FILTERS: 'finance_analysis_filters',
+  ACCOUNTS: 'finance_accounts',
 } as const;
