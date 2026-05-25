@@ -9,7 +9,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useFinanceData } from '@/lib/contexts/FinanceContext';
+import { useFinance } from '@/lib/contexts/FinanceContext';
 import { Storage, STORAGE_KEYS } from '@/lib/storage';
 import {
   DEFAULT_OLLAMA_SETTINGS,
@@ -144,10 +144,12 @@ function buildHistoryForLLM(messages: ChatMessage[]): OllamaMessage[] {
 }
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
-  const { state, dispatch } = useFinanceData() as unknown as {
-    state: import('@/lib/types').FinanceState;
-    dispatch: React.Dispatch<import('@/lib/types').FinanceAction>;
-  };
+  // useFinance() returns the raw { state, dispatch } pair — the one we need
+  // here so we can hand `state` to tool executors. (useFinanceData spreads
+  // state's keys onto the top level and adds derived helpers; calling that
+  // and pulling `state` from it returns undefined and every tool crashes
+  // with "Cannot read property X of undefined".)
+  const { state, dispatch } = useFinance();
 
   const [settings, setSettingsState] = useState<OllamaSettings>(DEFAULT_OLLAMA_SETTINGS);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
