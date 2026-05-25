@@ -89,7 +89,8 @@
       {
         "provider": "github",
         "owner": "Gstxxx",
-        "repo": "Financas-pwa"
+        "repo": "Financas-pwa",
+        "releaseType": "release"
       }
     ]
   }
