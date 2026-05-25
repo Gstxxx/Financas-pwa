@@ -281,16 +281,116 @@ export async function testAppSession(): Promise<{ ok: boolean; message?: string 
 }
 
 /**
- * Lists all items the current auth context has access to. Dev API and
- * dashboard API differ in whether they wrap with `{ results: [...] }`
- * so we accept both shapes.
+ * Lists all items the current auth context has access to.
+ *
+ * Dev API: `/items` returns `{ results: [...] }` directly under your
+ *   clientId scope. Easy.
+ * Dashboard API: the user JWT is scoped to a user account, but items
+ *   are scoped to *applications* the user owns. Plain `/items` on
+ *   my-api.pluggy.ai returns empty in that mode — you need to either
+ *   hit `/me/items` (some endpoints expose this) or list the user's
+ *   applications/clients first and pull items per app.
+ *
+ * Strategy: cascade through known paths in priority order, return the
+ * first non-empty result. If everything is empty we still return [] so
+ * the caller's "no items" branch works, and the debug trace is
+ * available via listItemsWithDebug.
  */
-export async function listItems(): Promise<PluggyItem[]> {
-  type ListShape = PluggyItem[] | { results: PluggyItem[] };
-  const data = await authedFetch<ListShape>(`/items`);
-  if (Array.isArray(data)) return data;
-  if (data && Array.isArray(data.results)) return data.results;
+type ListShape<T> = T[] | { results: T[] };
+
+function unwrapList<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[];
+  if (data && typeof data === 'object' && 'results' in data) {
+    const r = (data as { results: unknown }).results;
+    if (Array.isArray(r)) return r as T[];
+  }
   return [];
+}
+
+export interface ListItemsAttempt {
+  path: string;
+  ok: boolean;
+  count: number;
+  error?: string;
+}
+
+export interface ListItemsDebug {
+  mode: 'session' | 'dev';
+  baseUrl: string;
+  attempts: ListItemsAttempt[];
+  items: PluggyItem[];
+}
+
+export async function listItemsWithDebug(): Promise<ListItemsDebug> {
+  const auth = await getAuth();
+  const attempts: ListItemsAttempt[] = [];
+  let items: PluggyItem[] = [];
+
+  const tryPath = async (path: string): Promise<PluggyItem[]> => {
+    try {
+      const data = await authedFetch<ListShape<PluggyItem>>(path);
+      const list = unwrapList<PluggyItem>(data);
+      attempts.push({ path, ok: true, count: list.length });
+      return list;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      attempts.push({ path, ok: false, count: 0, error: msg.slice(0, 200) });
+      return [];
+    }
+  };
+
+  // 1. Vanilla /items — works in dev mode + some dashboard scopes
+  items = await tryPath('/items?pageSize=100');
+  if (items.length > 0) return { mode: auth.mode, baseUrl: auth.baseUrl, attempts, items };
+
+  // Dashboard JWT scoped to user: items live under applications/clients.
+  if (auth.mode === 'session') {
+    // 2. Try /me/items — some dashboard scopes expose this shortcut
+    items = await tryPath('/me/items');
+    if (items.length > 0) return { mode: auth.mode, baseUrl: auth.baseUrl, attempts, items };
+
+    // 3. List clients, then items per client
+    try {
+      const data = await authedFetch<ListShape<{ id: string; name?: string }>>(`/clients`);
+      const clients = unwrapList<{ id: string; name?: string }>(data);
+      attempts.push({ path: '/clients', ok: true, count: clients.length });
+      for (const c of clients) {
+        const sub = await tryPath(
+          `/clients/${encodeURIComponent(c.id)}/items?pageSize=100`
+        );
+        items.push(...sub);
+      }
+      if (items.length > 0) return { mode: auth.mode, baseUrl: auth.baseUrl, attempts, items };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      attempts.push({ path: '/clients', ok: false, count: 0, error: msg.slice(0, 200) });
+    }
+
+    // 4. List applications, then items per application
+    try {
+      const data = await authedFetch<ListShape<{ id: string; name?: string }>>(
+        `/applications`
+      );
+      const apps = unwrapList<{ id: string; name?: string }>(data);
+      attempts.push({ path: '/applications', ok: true, count: apps.length });
+      for (const a of apps) {
+        const sub = await tryPath(
+          `/applications/${encodeURIComponent(a.id)}/items?pageSize=100`
+        );
+        items.push(...sub);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      attempts.push({ path: '/applications', ok: false, count: 0, error: msg.slice(0, 200) });
+    }
+  }
+
+  return { mode: auth.mode, baseUrl: auth.baseUrl, attempts, items };
+}
+
+export async function listItems(): Promise<PluggyItem[]> {
+  const { items } = await listItemsWithDebug();
+  return items;
 }
 
 /**

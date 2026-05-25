@@ -145,6 +145,15 @@ interface ElectronPluggyAPI {
   getAppSessionInfo(): Promise<PluggyAppSessionInfo>;
   testAppSession(): Promise<{ ok: boolean; message?: string }>;
   listItems(): Promise<PluggyItemInfo[]>;
+  /** Same as listItems() but returns the trace of which endpoints were
+   * tried, used to diagnose "Nenhum banco pra importar" when the user
+   * actually has connected banks. */
+  debugListItems(): Promise<{
+    mode: 'session' | 'dev';
+    baseUrl: string;
+    attempts: { path: string; ok: boolean; count: number; error?: string }[];
+    items: PluggyItemInfo[];
+  }>;
   /** Opens meu.pluggy.ai in a child window, intercepts the first
    * Bearer token the dashboard sends to my-api.pluggy.ai, and saves
    * it as the app session. Resolves once the window closes. */

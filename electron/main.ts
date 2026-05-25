@@ -35,6 +35,7 @@ import {
   getAppSessionInfo as pluggyGetAppSessionInfo,
   testAppSession as pluggyTestAppSession,
   listItems as pluggyListItems,
+  listItemsWithDebug as pluggyListItemsWithDebug,
 } from './pluggy';
 
 const isDev = !app.isPackaged || process.env.ELECTRON_DEV === '1';
@@ -364,6 +365,7 @@ function registerIpc() {
   ipcMain.handle('pluggy:getAppSessionInfo', () => pluggyGetAppSessionInfo());
   ipcMain.handle('pluggy:testAppSession', async () => pluggyTestAppSession());
   ipcMain.handle('pluggy:listItems', async () => pluggyListItems());
+  ipcMain.handle('pluggy:debugListItems', async () => pluggyListItemsWithDebug());
 
   /**
    * One-click connect flow. Opens an Electron BrowserWindow at the

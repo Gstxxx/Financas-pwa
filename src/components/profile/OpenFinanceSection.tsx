@@ -77,6 +77,13 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
   const [sessionTesting, setSessionTesting] = useState(false);
   const [importingItems, setImportingItems] = useState(false);
   const [autoLoggingIn, setAutoLoggingIn] = useState(false);
+  const [diagnostic, setDiagnostic] = useState<{
+    mode: string;
+    baseUrl: string;
+    attempts: { path: string; ok: boolean; count: number; error?: string }[];
+    itemCount: number;
+  } | null>(null);
+  const [diagnosing, setDiagnosing] = useState(false);
 
   const refreshSessionInfo = async () => {
     if (!pluggy) return;
@@ -257,7 +264,21 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
       }
       if (!silent) {
         if (totals.items === 0) {
-          onToast('Nenhum banco pra importar');
+          onToast('Nenhum banco pra importar — rodando diagnóstico…');
+          // Auto-fire the diagnostic so the user immediately sees which
+          // endpoint(s) we tried and what came back. They can copy the
+          // JSON and share it for further debugging.
+          try {
+            const res = await pluggy.debugListItems();
+            setDiagnostic({
+              mode: res.mode,
+              baseUrl: res.baseUrl,
+              attempts: res.attempts,
+              itemCount: res.items.length,
+            });
+          } catch {
+            /* swallow — the toast already told them */
+          }
         } else {
           const internalNote =
             totals.skipped > 0 ? ` · ${totals.skipped} internas ignoradas` : '';
@@ -515,6 +536,82 @@ export function OpenFinanceSection({ onToast }: OpenFinanceSectionProps) {
             do filtro existir.
           </div>
         )}
+        {sessionInfo.hasSession && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="mt-2"
+            disabled={diagnosing}
+            onClick={async () => {
+              if (!pluggy) return;
+              setDiagnosing(true);
+              try {
+                const res = await pluggy.debugListItems();
+                setDiagnostic({
+                  mode: res.mode,
+                  baseUrl: res.baseUrl,
+                  attempts: res.attempts,
+                  itemCount: res.items.length,
+                });
+              } catch (err) {
+                onToast(`Diagnóstico falhou: ${err instanceof Error ? err.message : String(err)}`);
+              } finally {
+                setDiagnosing(false);
+              }
+            }}
+          >
+            {diagnosing ? 'Testando endpoints…' : '🔍 Diagnosticar "Nenhum banco pra importar"'}
+          </Button>
+        )}
+
+        {diagnostic && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: 12,
+              background: 'var(--surface-2)',
+              border: '1px solid var(--hair-soft)',
+              borderRadius: 10,
+              fontFamily: 'var(--f-mono)',
+              fontSize: 11,
+              lineHeight: 1.5,
+            }}
+          >
+            <div style={{ marginBottom: 6, color: 'var(--ink-mute)' }}>
+              modo: <b>{diagnostic.mode}</b> · base: {diagnostic.baseUrl} · items
+              retornados: <b>{diagnostic.itemCount}</b>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {diagnostic.attempts.map((a, i) => (
+                <div
+                  key={i}
+                  style={{
+                    color: a.ok
+                      ? a.count > 0
+                        ? 'var(--pos)'
+                        : 'var(--ink-mute)'
+                      : 'var(--neg)',
+                  }}
+                >
+                  {a.ok ? '✓' : '✗'} {a.path} → {a.ok ? `${a.count} items` : a.error}
+                </div>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              className="mt-2"
+              onClick={() => {
+                navigator.clipboard
+                  .writeText(JSON.stringify(diagnostic, null, 2))
+                  .then(() => onToast('Diagnóstico copiado!'));
+              }}
+            >
+              Copiar JSON
+            </Button>
+          </div>
+        )}
+
         {sessionInfo.hasSession && (
           <Button
             type="button"

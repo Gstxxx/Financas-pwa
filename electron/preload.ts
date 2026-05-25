@@ -100,6 +100,13 @@ const pluggy = {
       message?: string;
     }>,
   listItems: () => ipcRenderer.invoke('pluggy:listItems') as Promise<unknown[]>,
+  debugListItems: () =>
+    ipcRenderer.invoke('pluggy:debugListItems') as Promise<{
+      mode: 'session' | 'dev';
+      baseUrl: string;
+      attempts: { path: string; ok: boolean; count: number; error?: string }[];
+      items: unknown[];
+    }>,
   loginFlow: () =>
     ipcRenderer.invoke('pluggy:loginFlow') as Promise<{ ok: boolean; message?: string }>,
 };
