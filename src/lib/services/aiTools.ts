@@ -440,6 +440,143 @@ register<{ bill_key: string; days: number }, unknown>({
 });
 
 register<
+  {
+    name: string;
+    installment_value: number;
+    number_of_installments: number;
+    due_day: number;
+    start_month?: number;
+    start_year?: number;
+    // Some models return this as a comma-joined string, others as an
+    // array — accept both shapes and normalize at runtime.
+    entity_names?: string[] | string;
+  },
+  unknown
+>({
+  name: 'add_debt',
+  description:
+    'Cria uma nova dívida ou conta recorrente. Passe number_of_installments=0 para contas recorrentes (luz, aluguel). Para parcelados, use o total de parcelas (ex: 12 para 12x). entity_names liga categorias existentes pelo nome (case-insensitive).',
+  parameters: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Nome da conta/dívida' },
+      installment_value: { type: 'number', description: 'Valor de cada parcela (R$)' },
+      number_of_installments: {
+        type: 'number',
+        description: '0 = recorrente/fixa; >0 = total de parcelas',
+      },
+      due_day: { type: 'number', description: 'Dia do mês de vencimento (1-31)' },
+      start_month: { type: 'number', description: '1-12 (default mês atual)' },
+      start_year: { type: 'number', description: '4 dígitos (default ano atual)' },
+      entity_names: {
+        type: 'string',
+        description: 'Lista de nomes de categorias separados por vírgula (opcional)',
+      },
+    },
+    required: ['name', 'installment_value', 'number_of_installments', 'due_day'],
+  },
+  safety: 'confirm',
+  describeCall: (args) =>
+    `Criar ${args.number_of_installments === 0 ? 'conta recorrente' : `dívida em ${args.number_of_installments}x`}: ${args.name} — R$ ${Number(args.installment_value).toFixed(2)} dia ${args.due_day}`,
+  execute: (args, { state, dispatch }) => {
+    const now = new Date();
+    // Resolve entity names → ids (case-insensitive substring match).
+    const wantedNames = Array.isArray(args.entity_names)
+      ? args.entity_names
+      : typeof args.entity_names === 'string'
+        ? args.entity_names.split(',').map((s) => s.trim())
+        : [];
+    const matched = wantedNames
+      .map((n: string) => {
+        const lower = n.toLowerCase();
+        return (state.entities as Entity[]).find((e) => e.name.toLowerCase() === lower) ??
+          (state.entities as Entity[]).find((e) => e.name.toLowerCase().includes(lower));
+      })
+      .filter((e): e is Entity => !!e);
+    dispatch({
+      type: 'ADD_DEBT',
+      payload: {
+        accountName: args.name,
+        installmentValue: Number(args.installment_value),
+        numberOfInstallments: clampInt(args.number_of_installments, 0, 360),
+        dueDay: clampInt(args.due_day, 1, 31),
+        startMonth: clampInt(args.start_month ?? now.getMonth() + 1, 1, 12),
+        startYear: clampInt(args.start_year ?? now.getFullYear(), 2000, 2200),
+        entityIds: matched.map((e) => e.id),
+        entityNames: matched.map((e) => e.name),
+      },
+    });
+    return { ok: true };
+  },
+});
+
+register<{ installment_id: string }, unknown>({
+  name: 'mark_unpaid',
+  description:
+    'Desmarca uma parcela como paga (desfaz um mark_bill_paid). Use o installment_id retornado por search_debts.',
+  parameters: {
+    type: 'object',
+    properties: {
+      installment_id: { type: 'string' },
+    },
+    required: ['installment_id'],
+  },
+  safety: 'confirm',
+  describeCall: (args, state) => {
+    const inst = state.installments.find((i) => i.id === args.installment_id);
+    if (!inst) return `Desmarcar pagamento ${args.installment_id}`;
+    const debt = state.debts.find((d) => d.id === inst.debtId);
+    return `Desmarcar pagamento: ${debt?.accountName ?? inst.debtId} parcela ${inst.installmentNumber}/${debt?.numberOfInstallments ?? '?'}`;
+  },
+  execute: (args, { dispatch }) => {
+    dispatch({ type: 'UNMARK_PAID', payload: { installmentId: args.installment_id } });
+    return { ok: true };
+  },
+});
+
+register<
+  {
+    name: string;
+    type?: 'checking' | 'savings' | 'cash' | 'credit_card';
+    current_balance?: number;
+  },
+  unknown
+>({
+  name: 'add_account',
+  description:
+    'Cria uma nova conta/carteira (banco, poupança, dinheiro físico ou cartão de crédito). Para credit_card, o currentBalance representa a fatura aberta.',
+  parameters: {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      type: {
+        type: 'string',
+        enum: ['checking', 'savings', 'cash', 'credit_card'],
+        description: 'default: checking',
+      },
+      current_balance: { type: 'number', description: 'Saldo inicial (default 0)' },
+    },
+    required: ['name'],
+  },
+  safety: 'confirm',
+  describeCall: (args) =>
+    `Criar carteira "${args.name}" (${args.type ?? 'checking'})${
+      args.current_balance ? ` com R$ ${Number(args.current_balance).toFixed(2)}` : ''
+    }`,
+  execute: (args, { dispatch }) => {
+    dispatch({
+      type: 'ADD_ACCOUNT',
+      payload: {
+        name: args.name,
+        type: args.type ?? 'checking',
+        currentBalance: Number(args.current_balance ?? 0),
+      },
+    });
+    return { ok: true };
+  },
+});
+
+register<
   { from_account_id: string; to_account_id: string; amount: number; note?: string },
   unknown
 >({

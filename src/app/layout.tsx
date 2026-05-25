@@ -13,6 +13,7 @@ import { SplashKiller } from '@/components/layout/SplashKiller';
 import { UpdaterProvider } from '@/lib/contexts/UpdaterContext';
 import { UpdateModal } from '@/components/updater/UpdateModal';
 import { ChatProvider } from '@/lib/contexts/ChatContext';
+import { FloatingChat } from '@/components/chat/FloatingChat';
 import '@/styles/globals.css';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '';
@@ -147,6 +148,7 @@ export default function RootLayout({
                   <BottomNav />
                   <PWARegister />
                   <UpdateModal />
+                  <FloatingChat />
                 </ToastProvider>
               </ChatProvider>
             </FinanceProvider>

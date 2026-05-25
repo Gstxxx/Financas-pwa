@@ -693,6 +693,29 @@ select.input {
   }
 }
 
+/* Floating chat button — sits above the bottom-nav pill on mobile, in
+   the bottom-right corner on desktop sidebar mode. */
+@media (min-width: 900px) {
+  .chat-fab {
+    bottom: 28px !important;
+  }
+}
+.chat-fab:active {
+  transform: scale(0.95);
+}
+
+/* Slide-in chat panel keyframes (used by FloatingChat). Putting them in
+   globals dodges styled-jsx, which next/static-export doesn't ship in
+   this project. */
+@keyframes chatPanelOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes chatPanelSlideIn {
+  from { transform: translateX(100%); }
+  to   { transform: none; }
+}
+
 /* ── Row (list rows in cards) ── */
 .row {
   padding: 18px 20px;
