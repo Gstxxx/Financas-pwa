@@ -173,5 +173,17 @@ Próximas frentes possíveis:
 
 ## Licença
 
-Uso pessoal. Sem licença pública definida — fork à vontade pra uso
-próprio, mas pra distribuir comercialmente abra uma issue antes.
+Source-available, **não-comercial**. Veja [LICENSE](LICENSE) pra texto
+integral.
+
+**Pode** — usar pessoalmente, estudar, modificar, redistribuir
+gratuitamente, fazer fork pra uso próprio, contribuir via PR.
+
+**Não pode** — vender, cobrar assinatura, oferecer como SaaS pago,
+embutir em produto comercial ou monetizar de qualquer forma. O direito
+comercial é exclusivo do autor (Gstxxx). Pra licenciar uso comercial,
+abra uma issue.
+
+**Contribuindo** — ao mandar um PR você concede ao autor licença
+perpétua e irrevogável pra usar sua contribuição inclusive em versões
+comerciais. Detalhes na cláusula 4 do [LICENSE](LICENSE).

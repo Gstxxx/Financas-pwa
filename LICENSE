@@ -1,0 +1,180 @@
+Financas — Licença Source-Available Não-Comercial
+Copyright (c) 2024-2026 Gstxxx. Todos os direitos reservados.
+
+Esta licença permite que qualquer pessoa leia, modifique e contribua com
+o código-fonte deste projeto, mas reserva o direito de comercialização
+exclusivamente ao Autor.
+
+==============================================================================
+1. DEFINIÇÕES
+==============================================================================
+
+"Software" significa o código-fonte, binários, ícones, assets e
+documentação contidos neste repositório, bem como quaisquer trabalhos
+derivados.
+
+"Autor" significa Gstxxx (GitHub: github.com/Gstxxx), titular dos
+direitos autorais sobre o Software.
+
+"Você" significa qualquer pessoa física ou jurídica que obtenha uma
+cópia do Software sob esta licença.
+
+"Uso Comercial" significa qualquer atividade cujo propósito primário ou
+secundário seja gerar receita, ganho monetário direto ou indireto, ou
+vantagem comercial — incluindo, sem limitação:
+   (a) vender cópias, instaladores, binários ou código-fonte do
+       Software;
+   (b) hospedar o Software como serviço pago (SaaS), por assinatura ou
+       cobrança recorrente;
+   (c) oferecer suporte, consultoria ou customização pagos cujo objeto
+       principal seja o Software;
+   (d) embutir o Software em produto ou serviço comercializado a
+       terceiros;
+   (e) sublicenciar o Software mediante pagamento;
+   (f) monetização indireta via anúncios, paywall, ou modelo freemium
+       baseado no Software.
+
+==============================================================================
+2. PERMISSÕES CONCEDIDAS A VOCÊ
+==============================================================================
+
+Sujeito aos termos desta licença, o Autor concede a Você uma licença
+mundial, não-exclusiva, isenta de royalties e revogável para:
+
+   (a) baixar, instalar e usar o Software para fins pessoais,
+       educacionais, acadêmicos, de pesquisa ou de avaliação interna
+       em uma organização;
+   (b) ler, estudar e analisar o código-fonte;
+   (c) modificar o Software e criar trabalhos derivados, desde que
+       apenas para os fins autorizados na alínea (a);
+   (d) redistribuir cópias do Software, modificadas ou não, em forma
+       de código-fonte ou binária, desde que: (i) gratuitamente,
+       (ii) mantendo este arquivo LICENSE íntegro, (iii) preservando
+       o aviso de copyright e (iv) tornando o código-fonte das
+       modificações disponível ao recebedor sob os mesmos termos
+       desta licença;
+   (e) enviar contribuições (issues, pull requests, patches, ideias)
+       de volta ao repositório oficial.
+
+==============================================================================
+3. RESTRIÇÃO COMERCIAL — DIREITO RESERVADO AO AUTOR
+==============================================================================
+
+Você NÃO está autorizado a praticar qualquer forma de Uso Comercial do
+Software ou de trabalhos derivados sem permissão prévia e por escrito
+do Autor.
+
+O direito exclusivo de comercializar o Software, em qualquer forma e
+sob qualquer modelo de negócio, é e permanece reservado ao Autor.
+
+Permissão comercial pode ser solicitada abrindo uma issue no
+repositório oficial ou contatando o Autor diretamente. O Autor poderá
+conceder, negar ou impor condições, a seu critério exclusivo.
+
+==============================================================================
+4. CONTRIBUIÇÕES
+==============================================================================
+
+Contribuições enviadas ao repositório oficial (incluindo, mas não
+limitado a, pull requests, patches, sugestões de código, traduções e
+documentação) ficam sujeitas aos seguintes termos:
+
+   (a) Ao submeter uma contribuição, Você declara que tem o direito
+       legal de fazê-lo e que a contribuição é de sua autoria ou que
+       Você possui as autorizações necessárias dos autores originais;
+
+   (b) Você concede ao Autor uma licença perpétua, mundial,
+       não-exclusiva, irrevogável, isenta de royalties e
+       sublicenciável para usar, reproduzir, modificar, distribuir,
+       executar, exibir e COMERCIALIZAR sua contribuição, em conjunto
+       com o Software ou em separado, sob esta licença ou sob
+       quaisquer outras licenças (incluindo licenças comerciais
+       proprietárias);
+
+   (c) Você retém a autoria moral e os direitos autorais sobre sua
+       contribuição, podendo reutilizá-la em outros projetos;
+
+   (d) Você renuncia a qualquer pretensão de royalty, remuneração ou
+       compensação financeira do Autor relativa à sua contribuição,
+       salvo acordo escrito em contrário.
+
+Se Você não concorda com estes termos, NÃO envie contribuições ao
+repositório.
+
+==============================================================================
+5. MARCAS, NOME E IDENTIDADE VISUAL
+==============================================================================
+
+O nome "Financas", o ícone do aplicativo e qualquer identidade visual
+associada são de titularidade do Autor e não são licenciados sob este
+documento.
+
+Trabalhos derivados redistribuídos por terceiros devem adotar um nome
+e identidade visual claramente distintos, de forma a não causar
+confusão com o produto oficial mantido pelo Autor.
+
+==============================================================================
+6. AUSÊNCIA DE GARANTIAS
+==============================================================================
+
+O SOFTWARE É FORNECIDO "COMO ESTÁ", SEM GARANTIA DE QUALQUER TIPO,
+EXPRESSA OU IMPLÍCITA, INCLUINDO MAS NÃO SE LIMITANDO A GARANTIAS DE
+COMERCIABILIDADE, ADEQUAÇÃO A UM PROPÓSITO ESPECÍFICO, PRECISÃO,
+DISPONIBILIDADE OU NÃO-INFRAÇÃO.
+
+EM NENHUMA HIPÓTESE O AUTOR SERÁ RESPONSÁVEL POR QUALQUER DANO
+DIRETO, INDIRETO, INCIDENTAL, ESPECIAL, EXEMPLAR OU CONSEQUENCIAL
+(INCLUINDO, MAS NÃO SE LIMITANDO A, PERDA DE DADOS, LUCROS CESSANTES
+OU INTERRUPÇÃO DE NEGÓCIO) DECORRENTE DO USO OU DA INCAPACIDADE DE
+USAR O SOFTWARE, AINDA QUE AVISADO DA POSSIBILIDADE DE TAIS DANOS.
+
+==============================================================================
+7. RESCISÃO
+==============================================================================
+
+Esta licença é rescindida automaticamente, sem necessidade de aviso,
+caso Você descumpra qualquer de seus termos — em particular a
+restrição comercial da Cláusula 3 ou as obrigações de contribuição
+da Cláusula 4.
+
+Após a rescisão, Você deve cessar todo uso do Software e destruir
+todas as cópias em sua posse. Direitos sob esta licença podem ser
+restaurados a critério do Autor caso a violação seja sanada em
+tempo hábil.
+
+As cláusulas 4(b), 5, 6 e 8 sobrevivem à rescisão.
+
+==============================================================================
+8. LEI APLICÁVEL E FORO
+==============================================================================
+
+Esta licença rege-se pelas leis da República Federativa do Brasil.
+Fica eleito o foro do domicílio do Autor para dirimir quaisquer
+controvérsias decorrentes desta licença, com renúncia expressa a
+qualquer outro, por mais privilegiado que seja.
+
+==============================================================================
+9. DISPOSIÇÕES FINAIS
+==============================================================================
+
+Se qualquer cláusula desta licença for considerada inválida ou
+inexequível por tribunal competente, as demais permanecerão em pleno
+vigor e efeito. A renúncia ou tolerância pelo Autor a qualquer
+descumprimento não constitui renúncia a descumprimentos futuros.
+
+Esta é a íntegra do acordo entre as partes quanto ao licenciamento do
+Software e substitui quaisquer acordos ou entendimentos anteriores.
+
+------------------------------------------------------------------------------
+RESUMO EM LINGUAGEM SIMPLES (não vincula juridicamente — leia as cláusulas)
+
+   PODE: usar pessoalmente, estudar, modificar, redistribuir grátis,
+         contribuir, fazer fork pra uso próprio.
+
+   NÃO PODE: vender, cobrar assinatura, oferecer como SaaS pago,
+             embutir em produto comercial, monetizar de qualquer forma
+             — só o Autor (Gstxxx) pode fazer isso.
+
+   CONTRIBUIÇÕES: ao mandar PR, você cede ao Autor o direito de usar
+                  comercialmente sua contribuição.
+------------------------------------------------------------------------------
